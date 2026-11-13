@@ -299,6 +299,30 @@ void main() {
         await tester.tap(find.text('Putih Bersih'));
         await tester.pump();
 
+        // Switch to Pastel Aesthetic template.
+        await tester.tap(find.text('Pastel Aesthetic'));
+        await tester.pumpAndSettle();
+        expect(find.text('✦ RUN DIARY ✦'), findsOneWidget);
+        expect(find.text('✿ FITTRACE RUN CLUB'), findsOneWidget);
+
+        // Switch to Run Receipt template.
+        await tester.tap(find.text('Run Receipt'));
+        await tester.pumpAndSettle();
+        expect(find.text('*** FITTRACE OFFICIAL RECEIPT ***'), findsOneWidget);
+        expect(find.text('THANK YOU FOR RUNNING!'), findsOneWidget);
+
+        // Switch to Cyber Neon template.
+        await tester.tap(find.text('Cyber Neon'));
+        await tester.pumpAndSettle();
+        expect(find.text('TELEMETRY // RUN_LOG'), findsOneWidget);
+        expect(find.text('[ FITTRACE // NIGHT OPS ]'), findsOneWidget);
+
+        // Switch to Cute Scrapbook template.
+        await tester.tap(find.text('Cute Scrapbook'));
+        await tester.pumpAndSettle();
+        expect(find.text('✿ GOOD RUN ✿'), findsOneWidget);
+        expect(find.text('happy running adventures ☀️👟'), findsOneWidget);
+
         // Switch to Photo Overlay -> pick gallery photo -> share dual assets to IG.
         await tester.tap(find.text('Photo Overlay'));
         await tester.pumpAndSettle();

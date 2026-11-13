@@ -226,10 +226,16 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
       }
 
       final assets = await _renderAssetsForInstagram();
-      final bgHex = _config.templateId == StoryTemplateId.minimalist &&
-              !_config.minimalistDark
-          ? '#FFFFFF'
-          : '#0A0A0A';
+      final bgHex = switch (_config.templateId) {
+        StoryTemplateId.minimalist =>
+          _config.minimalistDark ? '#0A0A0A' : '#FFFFFF',
+        StoryTemplateId.routeGlow => '#0A0A0A',
+        StoryTemplateId.photoOverlay => '#0A0A0A',
+        StoryTemplateId.pastelAesthetic => '#E9D5FF',
+        StoryTemplateId.receiptRunner => '#121316',
+        StoryTemplateId.cyberNeon => '#07080D',
+        StoryTemplateId.cuteJournal => '#F6F1E9',
+      };
 
       final outcome = await shareService.shareToInstagramStory(
         backgroundPath: assets.backgroundFile.path,

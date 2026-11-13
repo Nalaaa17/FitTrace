@@ -12,6 +12,10 @@ import '../../../core/widgets/text_input_dialog.dart';
 import '../../backup/application/backup_providers.dart';
 import '../../feed/application/feed_providers.dart';
 import '../../import/application/import_providers.dart';
+import '../../intervals/application/interval_detector.dart';
+import '../../intervals/presentation/widgets/interval_breakdown_card.dart';
+import '../../shoes/application/shoe_providers.dart';
+import '../../shoes/domain/shoe.dart';
 import '../../stats/application/stats_providers.dart';
 import '../../story_share/presentation/story_editor_screen.dart';
 import '../application/activity_detail_providers.dart';
@@ -46,6 +50,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     final prefsAsync = ref.watch(userPreferencesProvider);
     final effortsAsync = ref.watch(activityBestEffortsProvider(widget.activityId));
     final allPrsAsync = ref.watch(allTimeBestEffortsProvider);
+    final shoeAsync = ref.watch(activityShoeProvider(widget.activityId));
     final colors = context.fitColors;
 
     return Scaffold(
@@ -132,7 +137,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        'GPS SPIKE FILTERED',
+                        'FILTER GPS AKTIF',
                         style: AppTypography.chartAxis(colors.textSecondary),
                       ),
                     ),
@@ -164,7 +169,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                 children: <Widget>[
                   Expanded(
                     child: _HeroSubMetric(
-                      label: 'AVG PACE',
+                      label: 'PACE RATA-RATA',
                       value: UnitFormatter.formatPaceWithUnit(
                         act.avgPaceSecPerKm,
                         unitSystem,
@@ -174,7 +179,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                   ),
                   Expanded(
                     child: _HeroSubMetric(
-                      label: 'MOVING TIME',
+                      label: 'WAKTU BERGERAK',
                       value: formatDuration(act.durationMovingSec),
                       colors: colors,
                     ),
@@ -184,44 +189,108 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
               const SizedBox(height: 14),
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Row(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
                     children: <Widget>[
-                      Expanded(
-                        child: _CompactStat(
-                          label: 'AVG HR',
-                          value: act.avgHeartRate != null
-                              ? '${act.avgHeartRate!.round()} bpm'
-                              : '—',
-                          colors: colors,
+                      if (act.garminActivityId != null) ...<Widget>[
+                        Row(
+                          children: <Widget>[
+                            const Icon(
+                              Icons.watch,
+                              size: 14,
+                              color: Color(0xFF81C784),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Garmin Connect #${act.garminActivityId} • Data Resmi Garmin',
+                              style: AppTypography.chartAxis(colors.textSecondary),
+                            ),
+                          ],
                         ),
-                      ),
-                      Expanded(
-                        child: _CompactStat(
-                          label: 'ELEV GAIN',
-                          value: UnitFormatter.formatElevation(
-                            act.totalElevationGainM,
-                            unitSystem,
-                            signed: true,
+                        const SizedBox(height: 10),
+                        const Divider(),
+                        const SizedBox(height: 10),
+                      ],
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: _CompactStat(
+                              label: 'HR RATA-RATA',
+                              value: act.avgHeartRate != null
+                                  ? '${act.avgHeartRate!.round()} bpm'
+                                  : '—',
+                              colors: colors,
+                            ),
                           ),
-                          colors: colors,
-                        ),
+                          Expanded(
+                            child: _CompactStat(
+                              label: 'HR MAKSIMAL',
+                              value: act.maxHeartRate != null
+                                  ? '${act.maxHeartRate!.round()} bpm'
+                                  : '—',
+                              colors: colors,
+                            ),
+                          ),
+                          Expanded(
+                            child: _CompactStat(
+                              label: 'KADENSI RATA-RATA',
+                              value: act.avgCadence != null
+                                  ? '${act.avgCadence!.round()} spm'
+                                  : '—',
+                              colors: colors,
+                            ),
+                          ),
+                        ],
                       ),
-                      Expanded(
-                        child: _CompactStat(
-                          label: 'KALORI',
-                          value: act.caloriesKcal > 0
-                              ? '${act.caloriesKcal} kcal'
-                              : '—',
-                          colors: colors,
-                        ),
+                      const SizedBox(height: 12),
+                      const Divider(),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: _CompactStat(
+                              label: 'NAIK ELEVASI (D+)',
+                              value: UnitFormatter.formatElevation(
+                                act.totalElevationGainM,
+                                unitSystem,
+                                signed: true,
+                              ),
+                              colors: colors,
+                            ),
+                          ),
+                          Expanded(
+                            child: _CompactStat(
+                              label: 'TURUN ELEVASI (D-)',
+                              value: UnitFormatter.formatElevation(
+                                -act.totalElevationLossM,
+                                unitSystem,
+                                signed: true,
+                              ),
+                              colors: colors,
+                            ),
+                          ),
+                          Expanded(
+                            child: _CompactStat(
+                              label: 'KALORI',
+                              value: act.caloriesKcal > 0
+                                  ? '${act.caloriesKcal} kcal'
+                                  : '—',
+                              colors: colors,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(height: 14),
+
+              // Shoe Tracking Card
+              _buildActivityShoeCard(
+                context,
+                act.id,
+                shoeAsync.value,
               ),
               const SizedBox(height: 16),
 
@@ -248,6 +317,16 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
               // 4. Splits table per km (M3-05)
               SplitsTable(
                 splits: bundle.lapSplits,
+                unitSystem: unitSystem,
+              ),
+              const SizedBox(height: 16),
+
+              // 4b. Auto-detected Interval Sessions
+              IntervalBreakdownCard(
+                result: const IntervalDetector().detectIntervals(
+                  activity: act,
+                  lapSplits: bundle.lapSplits,
+                ),
                 unitSystem: unitSystem,
               ),
               const SizedBox(height: 16),
@@ -296,6 +375,180 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildActivityShoeCard(
+    BuildContext context,
+    int activityId,
+    ShoeWithUsage? shoeWithUsage,
+  ) {
+    final shoe = shoeWithUsage?.shoe;
+    final isWorn = shoeWithUsage?.isAlertWorn ?? false;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E222B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isWorn
+              ? const Color(0xFFFF5252).withValues(alpha: 0.5)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: isWorn
+                  ? const Color(0xFFFF5252).withValues(alpha: 0.18)
+                  : const Color(0xFF00E676).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.directions_run_rounded,
+              color: isWorn ? const Color(0xFFFF5252) : const Color(0xFF00E676),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  shoe != null ? shoe.name : 'Belum Ada Sepatu Dipilih',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  shoeWithUsage != null
+                      ? '${shoeWithUsage.currentDistanceKm.toStringAsFixed(1)} / ${shoe!.maxDistanceKm.toStringAsFixed(0)} km (${shoeWithUsage.wearPercent.toStringAsFixed(0)}% aus)${isWorn ? " • ⚠️ Aus!" : ""}'
+                      : 'Pilih sepatu untuk melacak jarak tempuh & keausan sol',
+                  style: TextStyle(
+                    color: isWorn
+                        ? const Color(0xFFFF5252)
+                        : Colors.white.withValues(alpha: 0.6),
+                    fontSize: 11,
+                    fontWeight: isWorn ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF00E676),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            ),
+            onPressed: () => _selectShoeForActivity(context, activityId, shoe?.id),
+            child: Text(shoe == null ? 'Pilih' : 'Ganti'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _selectShoeForActivity(
+    BuildContext context,
+    int activityId,
+    int? currentShoeId,
+  ) async {
+    final shoes = await ref.read(shoesNotifierProvider.future);
+    if (!context.mounted) return;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1E222B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text(
+                    'Pilih Sepatu Lari',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.block, color: Colors.grey),
+                  title: const Text('Tanpa Sepatu', style: TextStyle(color: Colors.white)),
+                  trailing: currentShoeId == null
+                      ? const Icon(Icons.check, color: Color(0xFF00E676))
+                      : null,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    ref.read(assignShoeControllerProvider)(activityId, null);
+                  },
+                ),
+                const Divider(color: Colors.white12),
+                if (shoes.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      'Belum ada sepatu yang ditambahkan. Tambahkan di Pengaturan > Tracking Sepatu.',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+                    ),
+                  )
+                else
+                  ...shoes.where((s) => !s.shoe.isRetired).map((swu) {
+                    final shoe = swu.shoe;
+                    final isSelected = currentShoeId == shoe.id;
+                    return ListTile(
+                      leading: Icon(
+                        Icons.directions_run_rounded,
+                        color: swu.isAlertWorn
+                            ? const Color(0xFFFF5252)
+                            : const Color(0xFF00E676),
+                      ),
+                      title: Text(
+                        shoe.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${shoe.brand.isNotEmpty ? "${shoe.brand} • " : ""}${swu.currentDistanceKm.toStringAsFixed(1)} / ${shoe.maxDistanceKm.toStringAsFixed(0)} km (${swu.wearPercent.toStringAsFixed(0)}%)',
+                        style: TextStyle(
+                          color: swu.isAlertWorn
+                              ? const Color(0xFFFF5252)
+                              : Colors.white.withValues(alpha: 0.6),
+                          fontSize: 12,
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? const Icon(Icons.check, color: Color(0xFF00E676))
+                          : null,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        ref.read(assignShoeControllerProvider)(activityId, shoe.id);
+                      },
+                    );
+                  }),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

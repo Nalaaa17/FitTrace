@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:metrics_engine/metrics_engine.dart';
 
@@ -65,11 +67,16 @@ class FeedPagingNotifier extends Notifier<FeedPagingState> {
     final filter = ref.watch(feedFilterProvider);
     final db = ref.watch(appDatabaseProvider);
 
+    Timer? debounceTimer;
     ref.listen<AsyncValue<int>>(_feedMutationTickProvider, (prev, next) {
       if (prev?.value != next.value && next.hasValue) {
-        refresh();
+        debounceTimer?.cancel();
+        debounceTimer = Timer(const Duration(milliseconds: 500), () {
+          refresh();
+        });
       }
     });
+    ref.onDispose(() => debounceTimer?.cancel());
 
     final currentGen = ++_generation;
     Future<void>.microtask(() => _loadFirstPage(db, filter, currentGen));
@@ -185,15 +192,15 @@ String formatActivityLocalDate(DateTime startTimeUtc, int utcOffsetSeconds) {
   return '$day $month ${local.year} • $hour:$minute';
 }
 
-/// Human-readable label for feed badge (`SYNCED` / `LOCAL_ONLY` / `FAILED`).
+/// Human-readable label for feed badge (`TERSINKRON` / `HANYA LOKAL` / `GAGAL`).
 String syncBadgeLabel(String rawStatus) {
   switch (SyncStatus.fromStorageKey(rawStatus)) {
     case SyncStatus.synced:
-      return 'SYNCED';
+      return 'TERSINKRON';
     case SyncStatus.localOnly:
-      return 'LOCAL_ONLY';
+      return 'HANYA LOKAL';
     case SyncStatus.failed:
     case SyncStatus.parseFailed:
-      return 'FAILED';
+      return 'GAGAL';
   }
 }

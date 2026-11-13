@@ -4,6 +4,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/logging/app_logger.dart';
 import '../domain/garmin_session_refresher.dart';
+import 'garmin_dio_client.dart';
 import 'secure_cookie_store.dart';
 import 'webview_cookie_extractor.dart';
 
@@ -26,6 +27,23 @@ class WebViewSilentSessionRefresher implements GarminSessionRefresher {
 
   @override
   Future<RefreshOutcome> attemptSilentRefresh() async {
+    final session = await cookieStore.loadSession();
+    if (session != null && session.isPersonalApi) {
+      try {
+        final token = await DioGarminConnectClient.exchangePersonalApiKey(session.personalApiKey!);
+        final updated = session.copyWith(
+          bearerToken: () => token,
+          lastValidatedAtUtc: () => DateTime.now().toUtc(),
+        );
+        await cookieStore.saveSession(updated);
+        AppLogger.info('WebViewSilentSessionRefresher', 'Personal API token refreshed successfully');
+        return RefreshOutcome.refreshed;
+      } on Object catch (e) {
+        AppLogger.warn('WebViewSilentSessionRefresher', 'Failed to refresh Personal API token', e);
+        return RefreshOutcome.expiredOrLoginRequired;
+      }
+    }
+
     if (WebViewPlatform.instance == null) {
       return RefreshOutcome.failed;
     }

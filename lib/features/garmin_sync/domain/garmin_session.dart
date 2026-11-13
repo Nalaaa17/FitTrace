@@ -66,6 +66,7 @@ class GarminSessionBundle {
     required this.cookies,
     this.csrfToken,
     this.bearerToken,
+    this.personalApiKey,
     required this.capturedAtUtc,
     this.lastValidatedAtUtc,
   });
@@ -83,6 +84,7 @@ class GarminSessionBundle {
       cookies: parsedCookies,
       csrfToken: json['csrfToken'] as String?,
       bearerToken: json['bearerToken'] as String?,
+      personalApiKey: json['personalApiKey'] as String?,
       capturedAtUtc: DateTime.parse(json['capturedAtUtc'] as String).toUtc(),
       lastValidatedAtUtc: (json['lastValidatedAtUtc'] as String?) != null
           ? DateTime.tryParse(json['lastValidatedAtUtc'] as String)?.toUtc()
@@ -93,10 +95,17 @@ class GarminSessionBundle {
   final Map<String, GarminCookieEntry> cookies;
   final String? csrfToken;
   final String? bearerToken;
+  final String? personalApiKey;
   final DateTime capturedAtUtc;
   final DateTime? lastValidatedAtUtc;
 
-  bool get isEmpty => cookies.isEmpty && (bearerToken == null || bearerToken!.isEmpty);
+  bool get isPersonalApi =>
+      personalApiKey != null && personalApiKey!.trim().isNotEmpty;
+
+  bool get isEmpty =>
+      cookies.isEmpty &&
+      (bearerToken == null || bearerToken!.isEmpty) &&
+      (personalApiKey == null || personalApiKey!.isEmpty);
 
   /// Builds an RFC `Cookie` header matching [targetUri.host], excluding expired cookies.
   String buildCookieHeader(Uri targetUri, {DateTime? nowUtc}) {
@@ -123,6 +132,7 @@ class GarminSessionBundle {
     Map<String, GarminCookieEntry>? cookies,
     String? Function()? csrfToken,
     String? Function()? bearerToken,
+    String? Function()? personalApiKey,
     DateTime? capturedAtUtc,
     DateTime? Function()? lastValidatedAtUtc,
   }) {
@@ -130,6 +140,8 @@ class GarminSessionBundle {
       cookies: cookies ?? this.cookies,
       csrfToken: csrfToken != null ? csrfToken() : this.csrfToken,
       bearerToken: bearerToken != null ? bearerToken() : this.bearerToken,
+      personalApiKey:
+          personalApiKey != null ? personalApiKey() : this.personalApiKey,
       capturedAtUtc: capturedAtUtc ?? this.capturedAtUtc,
       lastValidatedAtUtc:
           lastValidatedAtUtc != null ? lastValidatedAtUtc() : this.lastValidatedAtUtc,
@@ -140,6 +152,7 @@ class GarminSessionBundle {
         'cookies': cookies.map((k, v) => MapEntry<String, dynamic>(k, v.toJson())),
         if (csrfToken != null) 'csrfToken': csrfToken,
         if (bearerToken != null) 'bearerToken': bearerToken,
+        if (personalApiKey != null) 'personalApiKey': personalApiKey,
         'capturedAtUtc': capturedAtUtc.toIso8601String(),
         if (lastValidatedAtUtc != null)
           'lastValidatedAtUtc': lastValidatedAtUtc!.toIso8601String(),
@@ -150,7 +163,7 @@ class GarminSessionBundle {
   /// Deliberately omits cookie and token values to prevent accidental leaks (`NFR-02`).
   @override
   String toString() =>
-      'GarminSessionBundle(cookies: ${cookies.length}, hasBearer: ${bearerToken != null})';
+      'GarminSessionBundle(cookies: ${cookies.length}, hasBearer: ${bearerToken != null}, isPersonalApi: $isPersonalApi)';
 }
 
 /// Summary metadata item returned by Garmin Connect `activitylist-service`.
@@ -162,6 +175,16 @@ class GarminActivitySummary {
     required this.sportType,
     this.distanceMeters = 0,
     this.durationTotalSec = 0,
+    this.durationMovingSec = 0,
+    this.averageHR,
+    this.maxHR,
+    this.averageCadence,
+    this.elevationGainM,
+    this.elevationLossM,
+    this.caloriesKcal,
+    this.avgPower,
+    this.trainingEffectLabel,
+    this.zoneDurationsSec = const <int>[0, 0, 0, 0, 0],
     this.updatedAtUtc,
   });
 
@@ -186,6 +209,25 @@ class GarminActivitySummary {
     final distanceM = rawDistance is num ? rawDistance.toDouble() : 0.0;
     final rawDuration = json['duration'];
     final durationSec = rawDuration is num ? rawDuration.round() : 0;
+    final rawMovingDuration = json['movingDuration'];
+    final movingSec = rawMovingDuration is num ? rawMovingDuration.round() : durationSec;
+
+    final avgHr = (json['averageHR'] as num?)?.toDouble();
+    final maxHr = (json['maxHR'] as num?)?.toDouble();
+    final avgCad = (json['averageRunningCadenceInStepsPerMinute'] ??
+            json['averageCadence'] as num?)
+        ?.toDouble();
+    final elevGain = (json['elevationGain'] as num?)?.toDouble();
+    final elevLoss = (json['elevationLoss'] as num?)?.toDouble();
+    final calories = (json['calories'] as num?)?.round();
+    final power = (json['avgPower'] as num?)?.toDouble();
+    final teLabel = json['trainingEffectLabel'] as String?;
+
+    final z1 = (json['hrTimeInZone_1'] as num?)?.round() ?? 0;
+    final z2 = (json['hrTimeInZone_2'] as num?)?.round() ?? 0;
+    final z3 = (json['hrTimeInZone_3'] as num?)?.round() ?? 0;
+    final z4 = (json['hrTimeInZone_4'] as num?)?.round() ?? 0;
+    final z5 = (json['hrTimeInZone_5'] as num?)?.round() ?? 0;
 
     return GarminActivitySummary(
       activityId: activityId,
@@ -194,6 +236,16 @@ class GarminActivitySummary {
       sportType: sport,
       distanceMeters: distanceM,
       durationTotalSec: durationSec,
+      durationMovingSec: movingSec,
+      averageHR: avgHr,
+      maxHR: maxHr,
+      averageCadence: avgCad,
+      elevationGainM: elevGain,
+      elevationLossM: elevLoss,
+      caloriesKcal: calories,
+      avgPower: power,
+      trainingEffectLabel: teLabel,
+      zoneDurationsSec: <int>[z1, z2, z3, z4, z5],
       updatedAtUtc: updatedUtc,
     );
   }
@@ -204,6 +256,16 @@ class GarminActivitySummary {
   final SportType sportType;
   final double distanceMeters;
   final int durationTotalSec;
+  final int durationMovingSec;
+  final double? averageHR;
+  final double? maxHR;
+  final double? averageCadence;
+  final double? elevationGainM;
+  final double? elevationLossM;
+  final int? caloriesKcal;
+  final double? avgPower;
+  final String? trainingEffectLabel;
+  final List<int> zoneDurationsSec;
   final DateTime? updatedAtUtc;
 
   static SportType _mapSportType(String typeKey) {

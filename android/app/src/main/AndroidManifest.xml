@@ -14,7 +14,8 @@
     <application
         android:label="FitTrace"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -42,7 +43,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/octet-stream" />
                 <data android:mimeType="application/vnd.ant.fit" />
-                <data android:mimeType="*/*" />
+                <data android:mimeType="application/fit" />
+                <data android:mimeType="application/x-fit" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

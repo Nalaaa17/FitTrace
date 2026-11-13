@@ -24,7 +24,9 @@ class MethodChannelWebViewCookieExtractor implements WebViewCookieExtractor {
   static const List<String> garminCookieUrls = <String>[
     'https://connect.garmin.com',
     'https://connect.garmin.com/modern',
+    'https://connect.garmin.com/app',
     'https://sso.garmin.com',
+    'https://www.garmin.com',
   ];
 
   final MethodChannel _channel;
@@ -44,7 +46,10 @@ class MethodChannelWebViewCookieExtractor implements WebViewCookieExtractor {
       if (rawMap != null) {
         for (final entry in rawMap.entries) {
           final uri = Uri.tryParse(entry.key);
-          final domain = uri?.host ?? '.garmin.com';
+          final host = uri?.host.toLowerCase() ?? '';
+          final domain = host.endsWith('garmin.com')
+              ? '.garmin.com'
+              : (host.isNotEmpty ? host : '.garmin.com');
           _parseCookieHeaderIntoMap(
             entry.value,
             cookies: cookies,

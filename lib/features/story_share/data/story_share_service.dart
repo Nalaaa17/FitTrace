@@ -90,14 +90,25 @@ class MethodChannelStoryShareService implements StoryShareService {
     required String filePath,
     required String displayName,
   }) async {
-    final result = await _channel.invokeMethod<String>(
-      'saveToGallery',
-      <String, Object?>{
-        'filePath': filePath,
-        'displayName': displayName,
-      },
-    );
-    return result ?? displayName;
+    try {
+      final result = await _channel.invokeMethod<String>(
+        'saveToGallery',
+        <String, Object?>{
+          'filePath': filePath,
+          'displayName': displayName,
+        },
+      );
+      return result ?? displayName;
+    } on MissingPluginException {
+      AppLogger.warn(
+        'StoryShareService',
+        'Native saveToGallery channel not available on this platform.',
+      );
+      return displayName;
+    } on PlatformException catch (error) {
+      AppLogger.error('StoryShareService', 'saveToGallery failed', error);
+      rethrow;
+    }
   }
 }
 

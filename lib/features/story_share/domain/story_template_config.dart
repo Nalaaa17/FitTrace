@@ -2,11 +2,15 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' show FontWeight, Offset, TextAlign;
 
-/// Supported MVP Instagram Story card templates (`PRD M4-02`..`M4-04`, `ADR-005`).
+/// Supported Instagram Story card templates (`PRD M4-02`..`M4-04`, `ADR-005`).
 enum StoryTemplateId {
   routeGlow('routeGlow', 'Route Glow'),
   photoOverlay('photoOverlay', 'Photo Overlay'),
-  minimalist('minimalist', 'Minimalist');
+  minimalist('minimalist', 'Minimalist'),
+  pastelAesthetic('pastelAesthetic', 'Pastel Aesthetic'),
+  receiptRunner('receiptRunner', 'Run Receipt'),
+  cyberNeon('cyberNeon', 'Cyber Neon'),
+  cuteJournal('cuteJournal', 'Cute Scrapbook');
 
   const StoryTemplateId(this.storageKey, this.label);
 

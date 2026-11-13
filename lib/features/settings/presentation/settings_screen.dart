@@ -12,6 +12,7 @@ import '../../backup/application/backup_providers.dart';
 import '../../backup/data/backup_restore_service.dart';
 import '../../garmin_sync/application/garmin_sync_providers.dart';
 import '../../garmin_sync/presentation/garmin_webview_login_screen.dart';
+import '../../shoes/presentation/shoe_management_screen.dart';
 import '../../story_share/domain/story_template_config.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -108,7 +109,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              _SectionTitle('SINKRONISASI GARMIN (ADR-003)', colors: colors),
+              _SectionTitle('SINKRONISASI GARMIN', colors: colors),
               const SizedBox(height: 8),
               Card(
                 child: Column(
@@ -248,6 +249,39 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 20),
+              _SectionTitle('SEPATU LARI & PERALATAN', colors: colors),
+              const SizedBox(height: 8),
+              Card(
+                child: ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00E676).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.directions_run_rounded,
+                      color: Color(0xFF00E676),
+                    ),
+                  ),
+                  title: const Text(
+                    'Tracking Sepatu Lari',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text(
+                    'Catat mileage sepatu & alert keausan (500-800 km)',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ShoeManagementScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
               _SectionTitle('KARTU INSTAGRAM STORY', colors: colors),
               const SizedBox(height: 8),
               Card(
@@ -261,30 +295,25 @@ class SettingsScreen extends ConsumerWidget {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: SegmentedButton<String>(
-                          showSelectedIcon: false,
-                          segments: StoryTemplateId.values
-                              .map(
-                                (t) => ButtonSegment<String>(
-                                  value: t.storageKey,
-                                  label: Text(
-                                    t.label,
-                                    overflow: TextOverflow.ellipsis,
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: StoryTemplateId.values.map((t) {
+                          final isSelected = prefs.defaultTemplateId == t.storageKey;
+                          return ChoiceChip(
+                            label: Text(t.label),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              if (selected) {
+                                db.updatePreferences(
+                                  UserPreferencesTableCompanion(
+                                    defaultTemplateId: Value(t.storageKey),
                                   ),
-                                ),
-                              )
-                              .toList(growable: false),
-                          selected: <String>{prefs.defaultTemplateId},
-                          onSelectionChanged: (sel) {
-                            db.updatePreferences(
-                              UserPreferencesTableCompanion(
-                                defaultTemplateId: Value(sel.first),
-                              ),
-                            );
-                          },
-                        ),
+                                );
+                              }
+                            },
+                          );
+                        }).toList(growable: false),
                       ),
                       const SizedBox(height: 12),
                       const Divider(),
@@ -308,7 +337,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              _SectionTitle('PROFIL & ZONA DETAK JANTUNG (M2-06)', colors: colors),
+              _SectionTitle('PROFIL & ZONA DETAK JANTUNG', colors: colors),
               const SizedBox(height: 8),
               _buildHrProfileCard(
                 context,
@@ -318,7 +347,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
               ),
               const SizedBox(height: 20),
-              _SectionTitle('MANAJEMEN DATA & BACKUP (M5-02–M5-05)', colors: colors),
+              _SectionTitle('MANAJEMEN DATA & BACKUP', colors: colors),
               const SizedBox(height: 8),
               _buildBackupAndStorageCard(
                 context,
@@ -353,7 +382,7 @@ class SettingsScreen extends ConsumerWidget {
                           height: 36,
                         ),
                       ),
-                      title: const Text('FitTrace v1.1.0'),
+                      title: const Text('FitTrace v1.0.0'),
                       subtitle: const Text('com.fittrace.app • Local-First Running Analytics'),
                     ),
                   ],
@@ -371,7 +400,7 @@ class SettingsScreen extends ConsumerWidget {
     required bool needsAttention,
   }) {
     if (!prefs.garminLoggedIn) {
-      return 'Belum terhubung (Mode Import Manual) • Ketuk untuk login';
+      return 'Belum terhubung • Gunakan API Key atau Web';
     }
     if (needsAttention) {
       return 'Terhubung • Perlu login ulang / verifikasi keamanan';
@@ -393,18 +422,55 @@ class SettingsScreen extends ConsumerWidget {
     required UserPreference prefs,
   }) async {
     if (!prefs.garminLoggedIn) {
-      final loggedIn = await Navigator.of(context).push<bool>(
-        MaterialPageRoute<bool>(
-          builder: (_) => const GarminWebViewLoginScreen(),
+      final mode = await showModalBottomSheet<String>(
+        context: context,
+        builder: (sheetCtx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.key_rounded, color: Colors.amber),
+                title: const Text('Garmin Personal API Key (Rekomendasi Resmi)'),
+                subtitle: const Text(
+                  'Langsung terhubung dengan API resmi Garmin (GCDC_...). Cepat, stabil, tanpa CAPTCHA.',
+                ),
+                onTap: () => Navigator.of(sheetCtx).pop('apikey'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.public_rounded),
+                title: const Text('Login via Web Garmin (Browser)'),
+                subtitle: const Text(
+                  'Login interaktif via portal Single Sign-On Garmin Connect.',
+                ),
+                onTap: () => Navigator.of(sheetCtx).pop('webview'),
+              ),
+            ],
+          ),
         ),
       );
-      if (loggedIn == true && context.mounted) {
-        final result =
-            await ref.read(garminSyncControllerProvider.notifier).syncNow();
-        if (!context.mounted || result == null) return;
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(result.summaryBannerText)));
+
+      if (!context.mounted || mode == null) return;
+
+      if (mode == 'apikey') {
+        await _showPersonalApiKeyDialog(context, ref);
+        return;
+      }
+
+      if (mode == 'webview') {
+        final loggedIn = await Navigator.of(context).push<bool>(
+          MaterialPageRoute<bool>(
+            builder: (_) => const GarminWebViewLoginScreen(),
+          ),
+        );
+        if (loggedIn == true && context.mounted) {
+          final result =
+              await ref.read(garminSyncControllerProvider.notifier).syncNow();
+          if (!context.mounted || result == null) return;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text(result.summaryBannerText)));
+        }
       }
       return;
     }
@@ -416,15 +482,20 @@ class SettingsScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             ListTile(
+              leading: const Icon(Icons.key_rounded, color: Colors.amber),
+              title: const Text('Ganti / Perbarui Personal API Key'),
+              onTap: () => Navigator.of(sheetCtx).pop('apikey'),
+            ),
+            ListTile(
               leading: const Icon(Icons.login_rounded),
-              title: const Text('Login Ulang / Perbarui Sesi Garmin'),
+              title: const Text('Login Ulang via Web Garmin'),
               onTap: () => Navigator.of(sheetCtx).pop('relogin'),
             ),
             ListTile(
               leading: const Icon(Icons.logout_rounded),
               title: const Text('Putuskan Akun Garmin'),
               subtitle: const Text(
-                'Menghapus cookie sesi terenkripsi; data lari lokal tetap aman',
+                'Menghapus sesi terenkripsi; data lari lokal tetap aman',
               ),
               onTap: () => Navigator.of(sheetCtx).pop('disconnect'),
             ),
@@ -434,7 +505,9 @@ class SettingsScreen extends ConsumerWidget {
     );
 
     if (!context.mounted || action == null) return;
-    if (action == 'relogin') {
+    if (action == 'apikey') {
+      await _showPersonalApiKeyDialog(context, ref);
+    } else if (action == 'relogin') {
       final ok = await Navigator.of(context).push<bool>(
         MaterialPageRoute<bool>(
           builder: (_) => const GarminWebViewLoginScreen(),
@@ -449,7 +522,7 @@ class SettingsScreen extends ConsumerWidget {
         builder: (dlgCtx) => AlertDialog(
           title: const Text('Putuskan Akun Garmin?'),
           content: const Text(
-            'Sesi dan cookie terenkripsi akan dihapus dari perangkat. Riwayat lari di SQLite tidak akan terhapus.',
+            'Sesi dan kunci API terenkripsi akan dihapus dari perangkat. Riwayat lari di SQLite tidak akan terhapus.',
           ),
           actions: <Widget>[
             TextButton(
@@ -463,10 +536,99 @@ class SettingsScreen extends ConsumerWidget {
           ],
         ),
       );
-      if (confirmed == true) {
+      if (confirmed == true && context.mounted) {
         await ref.read(garminSyncControllerProvider.notifier).disconnectGarmin();
       }
     }
+  }
+
+  Future<void> _showPersonalApiKeyDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final session = await ref.read(secureCookieStoreProvider).loadSession();
+    if (!context.mounted) return;
+    final currentKey = session?.personalApiKey ?? '';
+    final textController = TextEditingController(text: currentKey);
+
+    final key = await showDialog<String>(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        title: const Text('Garmin Personal API Key'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const Text(
+              'Masukkan Personal API Key resmi dari Garmin Connect (dimulai dengan GCDC_...).',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: textController,
+              maxLines: 3,
+              autocorrect: false,
+              enableSuggestions: false,
+              style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+              decoration: const InputDecoration(
+                labelText: 'Personal API Key',
+                hintText: 'GCDC_...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dlgCtx).pop(),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dlgCtx).pop(textController.text.trim()),
+            child: const Text('Hubungkan'),
+          ),
+        ],
+      ),
+    );
+
+    if (key == null || key.isEmpty || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Menghubungkan ke Garmin Personal API...')),
+    );
+
+    final res = await ref
+        .read(garminSyncControllerProvider.notifier)
+        .connectWithPersonalApiKey(key);
+
+    if (!context.mounted) return;
+
+    if (!res.success) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(res.errorMessage ?? 'Gagal menghubungkan API Key.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Berhasil terhubung! Memulai sinkronisasi aktivitas...'),
+        backgroundColor: Colors.green,
+      ),
+    );
+
+    final syncResult =
+        await ref.read(garminSyncControllerProvider.notifier).syncNow();
+
+    if (!context.mounted || syncResult == null) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(syncResult.summaryBannerText)));
   }
 
   Widget _buildHrProfileCard(
@@ -616,6 +778,16 @@ class SettingsScreen extends ConsumerWidget {
             ),
             enabled: !backupState.isRunning,
             onTap: () => _runCompactDb(context, ref),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.layers_clear_outlined),
+            title: const Text('Hapus Cache Peta (OSM)'),
+            subtitle: const Text(
+              'Hapus cache tile peta offline tanpa menghapus aktivitas lari',
+            ),
+            enabled: !backupState.isRunning,
+            onTap: () => _runClearTileCache(context, ref),
           ),
           const Divider(),
           ListTile(
@@ -776,6 +948,14 @@ class SettingsScreen extends ConsumerWidget {
     if (!context.mounted || res == null) return;
     final savedKb = (res.savedBytes / 1024).toStringAsFixed(1);
     _showSnack(context, 'SQLite VACUUM selesai (hemat $savedKb KB).');
+  }
+
+  Future<void> _runClearTileCache(BuildContext context, WidgetRef ref) async {
+    final freedBytes =
+        await ref.read(backupControllerProvider.notifier).clearTileCache();
+    if (!context.mounted) return;
+    final mb = (freedBytes / (1024 * 1024)).toStringAsFixed(2);
+    _showSnack(context, 'Cache peta OSM dibersihkan (hemat $mb MB).');
   }
 
   Future<void> _runCsvExport(BuildContext context, WidgetRef ref) async {

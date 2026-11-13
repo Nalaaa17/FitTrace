@@ -394,7 +394,7 @@ packages:
     source: hosted
     version: "0.9.3+6"
   fit_tool:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: fit_tool
       sha256: "295cd90f6f6aa62de5a94c1906e1fcd0eeb6d04348537ce1a51789ffcc0aaef2"

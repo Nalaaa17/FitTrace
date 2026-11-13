@@ -121,6 +121,11 @@ class AppTheme {
           ),
         ),
       ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: ZoomPageTransitionsBuilder(),
+        },
+      ),
       extensions: <ThemeExtension<dynamic>>[colors],
     );
   }

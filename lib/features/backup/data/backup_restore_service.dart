@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:drift/drift.dart' show InsertMode, Value;
+import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -82,9 +82,11 @@ class BackupRestoreService {
   static const int _tpMagic1 = 0x54; // T
   static const int _tpMagic2 = 0x54; // T
   static const int _tpMagic3 = 0x50; // P
-  static const int _tpBinaryVersion = 1;
+  static const int _tpBinaryVersion = 2;
   static const int _tpHeaderBytes = 10;
-  static const int _tpRecordBytes = 45;
+  static const int _tpRecordBytesV1 = 45;
+  static const int _tpRecordBytesV2 = 53;
+  static const int _tpRecordBytes = _tpRecordBytesV2;
 
   final AppDatabase db;
   final FitArchiveStorage archiveStorage;
@@ -111,7 +113,11 @@ class BackupRestoreService {
     final splitRows = await db.select(db.lapSplits).get();
     final effortRows = await db.select(db.activityBestEfforts).get();
     final presetRows = await db.select(db.storyPresets).get();
-    final trackPointRows = await db.select(db.trackPoints).get();
+
+    final totalTpRow = await db
+        .customSelect('SELECT COUNT(*) AS c FROM track_points;')
+        .getSingle();
+    final totalTrackPoints = totalTpRow.read<int>('c');
 
     final splitsByActivity = <int, List<LapSplitRecord>>{};
     for (final s in splitRows) {
@@ -122,8 +128,8 @@ class BackupRestoreService {
       (effortsByActivity[e.activityId] ??= <BestEffortRecord>[]).add(e);
     }
 
-    onProgress?.call('Mengemas trackpoints biner (${trackPointRows.length})...', 0.35);
-    final tpBytes = _encodeTrackPointsBinary(trackPointRows);
+    onProgress?.call('Mengemas trackpoints biner ($totalTrackPoints)...', 0.35);
+    final tpBytes = await _encodeTrackPointsBinaryChunked(totalTrackPoints);
 
     onProgress?.call('Mengumpulkan arsip .fit.gz...', 0.60);
     final archive = Archive()
@@ -444,28 +450,34 @@ class BackupRestoreService {
 
         final pts = tpMap[backupId] ?? const <_PackedTrackPoint>[];
         if (pts.isNotEmpty) {
-          await db.batch((b) {
-            b.insertAll(
-              db.trackPoints,
-              pts.map(
-                (pt) => TrackPointsCompanion.insert(
-                  activityId: newActivityId,
-                  timestampUtc: DateTime.fromMillisecondsSinceEpoch(
-                    pt.timestampMsUtc,
-                    isUtc: true,
+          const tpBatchSize = 1000;
+          for (var i = 0; i < pts.length; i += tpBatchSize) {
+            final end =
+                (i + tpBatchSize < pts.length) ? i + tpBatchSize : pts.length;
+            final slice = pts.sublist(i, end);
+            await db.batch((b) {
+              b.insertAll(
+                db.trackPoints,
+                slice.map(
+                  (pt) => TrackPointsCompanion.insert(
+                    activityId: newActivityId,
+                    timestampUtc: DateTime.fromMillisecondsSinceEpoch(
+                      pt.timestampMsUtc,
+                      isUtc: true,
+                    ),
+                    latitudeDeg: pt.latitudeDeg,
+                    longitudeDeg: pt.longitudeDeg,
+                    altitudeM: pt.altitudeM,
+                    speedMps: pt.speedMps,
+                    heartRateBpm: Value(pt.heartRateBpm),
+                    cadenceRpm: Value(pt.cadenceRpm),
+                    distanceMeters: pt.distanceMeters,
+                    hrZone: Value(pt.hrZone),
                   ),
-                  latitudeDeg: pt.latitudeDeg,
-                  longitudeDeg: pt.longitudeDeg,
-                  altitudeM: pt.altitudeM,
-                  speedMps: pt.speedMps,
-                  heartRateBpm: Value(pt.heartRateBpm),
-                  cadenceRpm: Value(pt.cadenceRpm),
-                  distanceMeters: pt.distanceMeters,
-                  hrZone: Value(pt.hrZone),
                 ),
-              ),
-            );
-          });
+              );
+            });
+          }
           restoredTrackPoints += pts.length;
         }
 
@@ -651,6 +663,30 @@ class BackupRestoreService {
     return CompactDatabaseResult(beforeBytes: before, afterBytes: after);
   }
 
+  /// Clears OpenStreetMap tile cache without touching activities or sqlite DB.
+  Future<int> clearTileCache() async {
+    var totalFreed = 0;
+    try {
+      final cacheDir = await _appCacheResolver();
+      final tileDir = Directory(p.join(cacheDir.path, 'osm_tiles'));
+      if (await tileDir.exists()) {
+        await for (final entity in tileDir.list(followLinks: false)) {
+          if (entity is File) {
+            totalFreed += await entity.length();
+            await entity.delete();
+          }
+        }
+      }
+      AppLogger.info(
+        'BackupRestore',
+        'OSM tile cache cleared ($totalFreed bytes freed)',
+      );
+    } on Object catch (e) {
+      AppLogger.warn('BackupRestore', 'Failed clearing OSM tile cache', e);
+    }
+    return totalFreed;
+  }
+
   /// Erases all local activities, caches, archives, preferences, and Garmin cookies (`M5-04`).
   Future<void> factoryResetAllData() async {
     await db.transaction(() async {
@@ -694,37 +730,67 @@ class BackupRestoreService {
     }
   }
 
-  static Uint8List _encodeTrackPointsBinary(List<TrackPointRecord> rows) {
-    final totalBytes = _tpHeaderBytes + rows.length * _tpRecordBytes;
+  Future<Uint8List> _encodeTrackPointsBinaryChunked(int totalCount) async {
+    final totalBytes = _tpHeaderBytes + totalCount * _tpRecordBytes;
     final byteData = ByteData(totalBytes);
     byteData.setUint8(0, _tpMagic0);
     byteData.setUint8(1, _tpMagic1);
     byteData.setUint8(2, _tpMagic2);
     byteData.setUint8(3, _tpMagic3);
     byteData.setUint16(4, _tpBinaryVersion, Endian.little);
-    byteData.setUint32(6, rows.length, Endian.little);
+    byteData.setUint32(6, totalCount, Endian.little);
 
-    var offset = _tpHeaderBytes;
-    for (final pt in rows) {
-      byteData.setInt32(offset, pt.activityId, Endian.little);
-      byteData.setInt64(
-        offset + 4,
-        pt.timestampUtc.toUtc().millisecondsSinceEpoch,
-        Endian.little,
-      );
-      byteData.setFloat64(offset + 12, pt.latitudeDeg, Endian.little);
-      byteData.setFloat64(offset + 20, pt.longitudeDeg, Endian.little);
-      byteData.setFloat32(offset + 28, pt.altitudeM, Endian.little);
-      byteData.setFloat32(offset + 32, pt.speedMps, Endian.little);
-      byteData.setInt16(offset + 36, pt.heartRateBpm ?? -1, Endian.little);
-      byteData.setInt16(offset + 38, pt.cadenceRpm ?? -1, Endian.little);
-      byteData.setInt32(offset + 40, pt.distanceMeters, Endian.little);
-      byteData.setInt8(offset + 44, pt.hrZone ?? -1);
-      offset += _tpRecordBytes;
+    if (totalCount == 0) {
+      return byteData.buffer.asUint8List();
+    }
+
+    const chunkSize = 2500;
+    var lastId = 0;
+    var writeOffset = _tpHeaderBytes;
+    var processed = 0;
+
+    while (processed < totalCount) {
+      final chunk = await (db.select(db.trackPoints)
+            ..where((t) => t.id.isBiggerThanValue(lastId))
+            ..orderBy([(t) => OrderingTerm.asc(t.id)])
+            ..limit(chunkSize))
+          .get();
+
+      if (chunk.isEmpty) break;
+
+      for (final pt in chunk) {
+        byteData.setInt32(writeOffset, pt.activityId, Endian.little);
+        byteData.setInt64(
+          writeOffset + 4,
+          pt.timestampUtc.toUtc().millisecondsSinceEpoch,
+          Endian.little,
+        );
+        byteData.setFloat64(writeOffset + 12, pt.latitudeDeg, Endian.little);
+        byteData.setFloat64(writeOffset + 20, pt.longitudeDeg, Endian.little);
+        byteData.setFloat64(writeOffset + 28, pt.altitudeM, Endian.little);
+        byteData.setFloat64(writeOffset + 36, pt.speedMps, Endian.little);
+        byteData.setInt16(
+          writeOffset + 44,
+          pt.heartRateBpm ?? -1,
+          Endian.little,
+        );
+        byteData.setInt16(
+          writeOffset + 46,
+          pt.cadenceRpm ?? -1,
+          Endian.little,
+        );
+        byteData.setInt32(writeOffset + 48, pt.distanceMeters, Endian.little);
+        byteData.setInt8(writeOffset + 52, pt.hrZone ?? -1);
+        writeOffset += _tpRecordBytes;
+      }
+
+      lastId = chunk.last.id;
+      processed += chunk.length;
     }
 
     return byteData.buffer.asUint8List();
   }
+
 
   static Map<int, List<_PackedTrackPoint>> _decodeTrackPointsBinary(
     Uint8List bytes,
@@ -740,11 +806,12 @@ class BackupRestoreService {
       throw const DatabaseFailure('Header magic `trackpoints.bin` tidak valid.');
     }
     final version = data.getUint16(4, Endian.little);
-    if (version != _tpBinaryVersion) {
+    if (version != 1 && version != 2) {
       throw DatabaseFailure('Versi biner `trackpoints.bin` ($version) tidak didukung.');
     }
     final count = data.getUint32(6, Endian.little);
-    final expectedLen = _tpHeaderBytes + count * _tpRecordBytes;
+    final recordBytes = version == 1 ? _tpRecordBytesV1 : _tpRecordBytesV2;
+    final expectedLen = _tpHeaderBytes + count * recordBytes;
     if (bytes.length != expectedLen) {
       throw const DatabaseFailure('Ukuran `trackpoints.bin` korup atau terpotong.');
     }
@@ -756,12 +823,28 @@ class BackupRestoreService {
       final tsMs = data.getInt64(offset + 4, Endian.little);
       final lat = data.getFloat64(offset + 12, Endian.little);
       final lng = data.getFloat64(offset + 20, Endian.little);
-      final alt = data.getFloat32(offset + 28, Endian.little);
-      final speed = data.getFloat32(offset + 32, Endian.little);
-      final hrRaw = data.getInt16(offset + 36, Endian.little);
-      final cadRaw = data.getInt16(offset + 38, Endian.little);
-      final dist = data.getInt32(offset + 40, Endian.little);
-      final zoneRaw = data.getInt8(offset + 44);
+      final double alt;
+      final double speed;
+      final int hrRaw;
+      final int cadRaw;
+      final int dist;
+      final int zoneRaw;
+
+      if (version == 1) {
+        alt = data.getFloat32(offset + 28, Endian.little);
+        speed = data.getFloat32(offset + 32, Endian.little);
+        hrRaw = data.getInt16(offset + 36, Endian.little);
+        cadRaw = data.getInt16(offset + 38, Endian.little);
+        dist = data.getInt32(offset + 40, Endian.little);
+        zoneRaw = data.getInt8(offset + 44);
+      } else {
+        alt = data.getFloat64(offset + 28, Endian.little);
+        speed = data.getFloat64(offset + 36, Endian.little);
+        hrRaw = data.getInt16(offset + 44, Endian.little);
+        cadRaw = data.getInt16(offset + 46, Endian.little);
+        dist = data.getInt32(offset + 48, Endian.little);
+        zoneRaw = data.getInt8(offset + 52);
+      }
 
       (grouped[actId] ??= <_PackedTrackPoint>[]).add(
         _PackedTrackPoint(
@@ -776,7 +859,7 @@ class BackupRestoreService {
           hrZone: zoneRaw >= 0 ? zoneRaw : null,
         ),
       );
-      offset += _tpRecordBytes;
+      offset += recordBytes;
     }
 
     return grouped;

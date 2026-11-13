@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'converters.dart';
 import 'tables.dart';
+import '../../features/shoes/domain/shoe.dart';
 
 part 'app_database.g.dart';
 
@@ -18,12 +19,34 @@ class ActivityAggregateStats {
     required this.totalDistanceMeters,
     required this.totalMovingDurationSec,
     required this.avgPaceSecPerKm,
+    this.totalCaloriesKcal = 0,
+    this.totalElevationGainM = 0.0,
+    this.totalElevationLossM = 0.0,
+    this.avgHeartRate,
+    this.maxHeartRate,
+    this.avgCadence,
+    this.longestDistanceMeters = 0.0,
+    this.avgDistanceMeters = 0.0,
+    this.outdoorRunsCount = 0,
+    this.indoorRunsCount = 0,
+    this.zoneDurationsSec = const <int>[0, 0, 0, 0, 0],
   });
 
   final int activityCount;
   final double totalDistanceMeters;
   final int totalMovingDurationSec;
   final double avgPaceSecPerKm;
+  final int totalCaloriesKcal;
+  final double totalElevationGainM;
+  final double totalElevationLossM;
+  final double? avgHeartRate;
+  final double? maxHeartRate;
+  final double? avgCadence;
+  final double longestDistanceMeters;
+  final double avgDistanceMeters;
+  final int outdoorRunsCount;
+  final int indoorRunsCount;
+  final List<int> zoneDurationsSec;
 }
 
 /// All-time Personal Record entry for a standard distance (`PRD M2-10`).
@@ -194,6 +217,32 @@ class AppDatabase extends _$AppDatabase {
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_best_efforts_act_dist '
       'ON activity_best_efforts (activity_id, distance_key);',
     );
+    await _ensureFeatureTables();
+  }
+
+  Future<void> _ensureFeatureTables() async {
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS shoes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        brand TEXT NOT NULL DEFAULT '',
+        max_distance_km REAL NOT NULL DEFAULT 600.0,
+        is_default INTEGER NOT NULL DEFAULT 0,
+        is_retired INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    ''');
+    await _addColumnIfMissing(
+      table: 'activities',
+      column: 'shoe_id',
+      definition: 'INTEGER',
+    );
+    await _addColumnIfMissing(
+      table: 'user_preferences',
+      column: 'weekly_target_km',
+      definition: 'REAL NOT NULL DEFAULT 30.0',
+    );
   }
 
   Future<void> _seedDefaultPreferences() async {
@@ -246,6 +295,15 @@ class AppDatabase extends _$AppDatabase {
       );
 
       await _insertChildren(activityId: activityId, parsed: parsed);
+
+      final defaultShoe = await getDefaultShoe();
+      if (defaultShoe != null) {
+        await customStatement(
+          'UPDATE activities SET shoe_id = ? WHERE id = ?;',
+          <Object>[defaultShoe.id, activityId],
+        );
+      }
+
       return activityId;
     });
   }
@@ -521,7 +579,7 @@ class AppDatabase extends _$AppDatabase {
             row.read<int>('max_id'),
             row.read<int>('max_upd'),
           ),
-        );
+        ).distinct();
   }
 
   /// Attaches a Garmin activity ID onto a previously imported local record
@@ -552,9 +610,22 @@ class AppDatabase extends _$AppDatabase {
     int utcOffsetSeconds = 0,
     double distanceMeters = 0,
     int durationTotalSec = 0,
+    int durationMovingSec = 0,
+    double? avgHeartRate,
+    double? maxHeartRate,
+    double? avgCadence,
+    double totalElevationGainM = 0,
+    double totalElevationLossM = 0,
+    int caloriesKcal = 0,
+    List<int> zoneDurationsSec = const <int>[0, 0, 0, 0, 0],
   }) async {
     final now = DateTime.now().toUtc();
     final existing = await findByGarminActivityId(garminActivityId);
+    final movingSec = durationMovingSec > 0 ? durationMovingSec : durationTotalSec;
+    final avgPace = (distanceMeters > 0 && movingSec > 0)
+        ? movingSec / (distanceMeters / 1000.0)
+        : 0.0;
+
     if (existing != null) {
       if (SyncStatus.fromStorageKey(existing.syncStatus) == SyncStatus.synced) {
         return existing.id;
@@ -563,6 +634,17 @@ class AppDatabase extends _$AppDatabase {
         ActivitiesCompanion(
           title: Value(title),
           syncStatus: Value(SyncStatus.failed.storageKey),
+          distanceMeters: Value(distanceMeters),
+          durationTotalSec: Value(durationTotalSec),
+          durationMovingSec: Value(movingSec),
+          avgPaceSecPerKm: Value(avgPace),
+          avgHeartRate: Value(avgHeartRate ?? existing.avgHeartRate),
+          maxHeartRate: Value(maxHeartRate ?? existing.maxHeartRate),
+          avgCadence: Value(avgCadence ?? existing.avgCadence),
+          totalElevationGainM: Value(totalElevationGainM > 0 ? totalElevationGainM : existing.totalElevationGainM),
+          totalElevationLossM: Value(totalElevationLossM > 0 ? totalElevationLossM : existing.totalElevationLossM),
+          caloriesKcal: Value(caloriesKcal > 0 ? caloriesKcal : existing.caloriesKcal),
+          zoneDurationsSec: Value(zoneDurationsSec.any((s) => s > 0) ? zoneDurationsSec : existing.zoneDurationsSec),
           updatedAt: Value(now),
         ),
       );
@@ -578,12 +660,15 @@ class AppDatabase extends _$AppDatabase {
         startTimeUtc: effectiveStart,
         utcOffsetSeconds: utcOffsetSeconds,
         durationTotalSec: durationTotalSec,
-        durationMovingSec: durationTotalSec,
+        durationMovingSec: movingSec,
         distanceMeters: distanceMeters,
-        avgPaceSecPerKm: 0,
-        totalElevationGainM: 0,
-        totalElevationLossM: 0,
-        caloriesKcal: 0,
+        avgPaceSecPerKm: avgPace,
+        avgHeartRate: Value(avgHeartRate),
+        maxHeartRate: Value(maxHeartRate),
+        avgCadence: Value(avgCadence),
+        totalElevationGainM: totalElevationGainM,
+        totalElevationLossM: totalElevationLossM,
+        caloriesKcal: caloriesKcal,
         isIndoor: Value(sportType == SportType.treadmill),
         hasGpsTrack: const Value(false),
         gpsQuality: Value(GpsQuality.none.storageKey),
@@ -591,7 +676,7 @@ class AppDatabase extends _$AppDatabase {
         syncStatus: SyncStatus.failed.storageKey,
         fitFileHash: '',
         splitPacesSecPerKm: const <int>[],
-        zoneDurationsSec: const <int>[0, 0, 0, 0, 0],
+        zoneDurationsSec: zoneDurationsSec,
         createdAt: now,
         updatedAt: now,
       ),
@@ -676,7 +761,16 @@ class AppDatabase extends _$AppDatabase {
       'SELECT '
       'COUNT(*) AS activity_count, '
       'COALESCE(SUM(distance_meters), 0.0) AS total_distance, '
-      'COALESCE(SUM(duration_moving_sec), 0) AS total_moving_sec '
+      'COALESCE(SUM(duration_moving_sec), 0) AS total_moving_sec, '
+      'COALESCE(SUM(calories_kcal), 0) AS total_calories, '
+      'COALESCE(SUM(total_elevation_gain_m), 0.0) AS total_elevation_gain, '
+      'COALESCE(SUM(total_elevation_loss_m), 0.0) AS total_elevation_loss, '
+      'AVG(avg_heart_rate) AS avg_heart_rate, '
+      'MAX(max_heart_rate) AS max_heart_rate, '
+      'AVG(avg_cadence) AS avg_cadence, '
+      'COALESCE(MAX(distance_meters), 0.0) AS max_distance, '
+      'COALESCE(SUM(CASE WHEN is_indoor = 0 THEN 1 ELSE 0 END), 0) AS outdoor_count, '
+      'COALESCE(SUM(CASE WHEN is_indoor = 1 THEN 1 ELSE 0 END), 0) AS indoor_count '
       'FROM activities $whereClause;',
       variables: variables,
       readsFrom: <ResultSetImplementation<HasResultSet, dynamic>>{activities},
@@ -688,12 +782,52 @@ class AppDatabase extends _$AppDatabase {
     final avgPace = distanceMeters > 0
         ? movingSec / (distanceMeters / 1000.0)
         : 0.0;
+    final totalCalories = row.read<int>('total_calories');
+    final totalElevGain = row.read<double>('total_elevation_gain');
+    final totalElevLoss = row.read<double>('total_elevation_loss');
+    final avgHr = row.readNullable<double>('avg_heart_rate');
+    final maxHr = row.readNullable<double>('max_heart_rate');
+    final avgCad = row.readNullable<double>('avg_cadence');
+    final maxDist = row.read<double>('max_distance');
+    final outdoorCount = row.read<int>('outdoor_count');
+    final indoorCount = row.read<int>('indoor_count');
+    final avgDist = count > 0 ? distanceMeters / count : 0.0;
+
+    final zoneRows = await customSelect(
+      'SELECT zone_durations_sec FROM activities '
+      '$whereClause AND zone_durations_sec IS NOT NULL AND length(zone_durations_sec) > 0;',
+      variables: variables,
+      readsFrom: <ResultSetImplementation<HasResultSet, dynamic>>{activities},
+    ).get();
+
+    final totalZones = <int>[0, 0, 0, 0, 0];
+    for (final zRow in zoneRows) {
+      final raw = zRow.readNullable<String>('zone_durations_sec');
+      if (raw == null || raw.isEmpty) continue;
+      try {
+        final decoded = const IntListConverter().fromSql(raw);
+        for (var i = 0; i < 5 && i < decoded.length; i++) {
+          totalZones[i] += decoded[i];
+        }
+      } catch (_) {}
+    }
 
     return ActivityAggregateStats(
       activityCount: count,
       totalDistanceMeters: distanceMeters,
       totalMovingDurationSec: movingSec,
       avgPaceSecPerKm: avgPace,
+      totalCaloriesKcal: totalCalories,
+      totalElevationGainM: totalElevGain,
+      totalElevationLossM: totalElevLoss,
+      avgHeartRate: avgHr,
+      maxHeartRate: maxHr,
+      avgCadence: avgCad,
+      longestDistanceMeters: maxDist,
+      avgDistanceMeters: avgDist,
+      outdoorRunsCount: outdoorCount,
+      indoorRunsCount: indoorCount,
+      zoneDurationsSec: totalZones,
     );
   }
 
@@ -890,6 +1024,215 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> deleteStoryPreset(int presetId) {
     return (delete(storyPresets)..where((t) => t.id.equals(presetId))).go();
+  }
+
+  // =========================================================================
+  // SHOE / GEAR TRACKING
+  // =========================================================================
+
+  Future<List<ShoeWithUsage>> getShoesWithUsage() async {
+    await _ensureFeatureTables();
+    final rows = await customSelect(
+      'SELECT s.id, s.name, s.brand, s.max_distance_km, s.is_default, s.is_retired, '
+      's.created_at, s.updated_at, '
+      'COALESCE(SUM(a.distance_meters), 0.0) AS total_distance_meters, '
+      'COUNT(a.id) AS activities_count '
+      'FROM shoes s '
+      'LEFT JOIN activities a ON a.shoe_id = s.id AND a.sync_status NOT IN (\'failed\', \'parseFailed\') '
+      'GROUP BY s.id '
+      'ORDER BY s.is_retired ASC, s.is_default DESC, s.id DESC;',
+      readsFrom: <ResultSetImplementation<HasResultSet, dynamic>>{activities},
+    ).get();
+
+    return rows.map((row) {
+      final shoe = Shoe(
+        id: row.read<int>('id'),
+        name: row.read<String>('name'),
+        brand: row.read<String>('brand'),
+        maxDistanceKm: row.read<double>('max_distance_km'),
+        isDefault: row.read<int>('is_default') == 1,
+        isRetired: row.read<int>('is_retired') == 1,
+        createdAt: DateTime.fromMillisecondsSinceEpoch(row.read<int>('created_at'), isUtc: true),
+        updatedAt: DateTime.fromMillisecondsSinceEpoch(row.read<int>('updated_at'), isUtc: true),
+      );
+      return ShoeWithUsage(
+        shoe: shoe,
+        totalDistanceMeters: row.read<double>('total_distance_meters'),
+        activitiesCount: row.read<int>('activities_count'),
+      );
+    }).toList(growable: false);
+  }
+
+  Future<Shoe?> getDefaultShoe() async {
+    await _ensureFeatureTables();
+    final rows = await customSelect(
+      'SELECT id, name, brand, max_distance_km, is_default, is_retired, created_at, updated_at '
+      'FROM shoes WHERE is_default = 1 AND is_retired = 0 LIMIT 1;',
+    ).get();
+    if (rows.isEmpty) return null;
+    final row = rows.first;
+    return Shoe(
+      id: row.read<int>('id'),
+      name: row.read<String>('name'),
+      brand: row.read<String>('brand'),
+      maxDistanceKm: row.read<double>('max_distance_km'),
+      isDefault: true,
+      isRetired: false,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.read<int>('created_at'), isUtc: true),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.read<int>('updated_at'), isUtc: true),
+    );
+  }
+
+  Future<ShoeWithUsage?> getShoeForActivity(int activityId) async {
+    await _ensureFeatureTables();
+    final rows = await customSelect(
+      'SELECT s.id, s.name, s.brand, s.max_distance_km, s.is_default, s.is_retired, '
+      's.created_at, s.updated_at, '
+      'COALESCE((SELECT SUM(a2.distance_meters) FROM activities a2 WHERE a2.shoe_id = s.id AND a2.sync_status NOT IN (\'failed\', \'parseFailed\')), 0.0) AS total_distance_meters, '
+      'COALESCE((SELECT COUNT(a3.id) FROM activities a3 WHERE a3.shoe_id = s.id AND a3.sync_status NOT IN (\'failed\', \'parseFailed\')), 0) AS activities_count '
+      'FROM activities a '
+      'JOIN shoes s ON s.id = a.shoe_id '
+      'WHERE a.id = ?1 LIMIT 1;',
+      variables: [Variable.withInt(activityId)],
+      readsFrom: <ResultSetImplementation<HasResultSet, dynamic>>{activities},
+    ).get();
+
+    if (rows.isEmpty) return null;
+    final row = rows.first;
+    return ShoeWithUsage(
+      shoe: Shoe(
+        id: row.read<int>('id'),
+        name: row.read<String>('name'),
+        brand: row.read<String>('brand'),
+        maxDistanceKm: row.read<double>('max_distance_km'),
+        isDefault: row.read<int>('is_default') == 1,
+        isRetired: row.read<int>('is_retired') == 1,
+        createdAt: DateTime.fromMillisecondsSinceEpoch(row.read<int>('created_at'), isUtc: true),
+        updatedAt: DateTime.fromMillisecondsSinceEpoch(row.read<int>('updated_at'), isUtc: true),
+      ),
+      totalDistanceMeters: row.read<double>('total_distance_meters'),
+      activitiesCount: row.read<int>('activities_count'),
+    );
+  }
+
+  Future<int> insertShoe({
+    required String name,
+    String brand = '',
+    double maxDistanceKm = 600.0,
+    bool isDefault = false,
+  }) async {
+    await _ensureFeatureTables();
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    if (isDefault) {
+      await customStatement('UPDATE shoes SET is_default = 0;');
+    }
+    await customStatement(
+      'INSERT INTO shoes (name, brand, max_distance_km, is_default, is_retired, created_at, updated_at) '
+      'VALUES (?, ?, ?, ?, 0, ?, ?);',
+      <Object>[name.trim(), brand.trim(), maxDistanceKm, isDefault ? 1 : 0, now, now],
+    );
+    final row = await customSelect('SELECT last_insert_rowid() AS id;').getSingle();
+    return row.read<int>('id');
+  }
+
+  Future<void> updateShoe({
+    required int id,
+    required String name,
+    required String brand,
+    required double maxDistanceKm,
+    required bool isDefault,
+    required bool isRetired,
+  }) async {
+    await _ensureFeatureTables();
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    if (isDefault) {
+      await customStatement('UPDATE shoes SET is_default = 0 WHERE id != ?;', <Object>[id]);
+    }
+    await customStatement(
+      'UPDATE shoes SET name = ?, brand = ?, max_distance_km = ?, is_default = ?, is_retired = ?, updated_at = ? '
+      'WHERE id = ?;',
+      <Object>[name.trim(), brand.trim(), maxDistanceKm, isDefault ? 1 : 0, isRetired ? 1 : 0, now, id],
+    );
+  }
+
+  Future<void> deleteShoe(int id) async {
+    await _ensureFeatureTables();
+    await customStatement('UPDATE activities SET shoe_id = NULL WHERE shoe_id = ?;', <Object>[id]);
+    await customStatement('DELETE FROM shoes WHERE id = ?;', <Object>[id]);
+  }
+
+  Future<void> setDefaultShoe(int id) async {
+    await _ensureFeatureTables();
+    await customStatement('UPDATE shoes SET is_default = 0;');
+    await customStatement('UPDATE shoes SET is_default = 1, is_retired = 0 WHERE id = ?;', <Object>[id]);
+  }
+
+  Future<void> assignShoeToActivity({
+    required int activityId,
+    required int? shoeId,
+  }) async {
+    await _ensureFeatureTables();
+    await customStatement(
+      'UPDATE activities SET shoe_id = ?, updated_at = ? WHERE id = ?;',
+      <Object?>[shoeId, DateTime.now().toUtc(), activityId],
+    );
+  }
+
+  // =========================================================================
+  // WEEKLY TARGETS
+  // =========================================================================
+
+  Future<double> getWeeklyTargetKm() async {
+    await _ensureFeatureTables();
+    final rows = await customSelect(
+      'SELECT weekly_target_km FROM user_preferences WHERE id = 1 LIMIT 1;',
+    ).get();
+    if (rows.isEmpty) return 30.0;
+    return rows.first.readNullable<double>('weekly_target_km') ?? 30.0;
+  }
+
+  Future<void> setWeeklyTargetKm(double targetKm) async {
+    await _ensureFeatureTables();
+    await customStatement(
+      'UPDATE user_preferences SET weekly_target_km = ? WHERE id = 1;',
+      <Object>[targetKm],
+    );
+  }
+
+  Future<double> getDistanceMetersBetween({
+    required DateTime startUtc,
+    required DateTime endUtc,
+  }) async {
+    final row = await customSelect(
+      'SELECT COALESCE(SUM(distance_meters), 0.0) AS total '
+      'FROM activities '
+      'WHERE start_time_utc >= ?1 AND start_time_utc <= ?2 '
+      'AND sync_status NOT IN (\'failed\', \'parseFailed\');',
+      variables: [
+        Variable.withDateTime(startUtc.toUtc()),
+        Variable.withDateTime(endUtc.toUtc()),
+      ],
+      readsFrom: <ResultSetImplementation<HasResultSet, dynamic>>{activities},
+    ).getSingle();
+    return row.read<double>('total');
+  }
+
+  Future<int> getActivityCountBetween({
+    required DateTime startUtc,
+    required DateTime endUtc,
+  }) async {
+    final row = await customSelect(
+      'SELECT COUNT(id) AS cnt '
+      'FROM activities '
+      'WHERE start_time_utc >= ?1 AND start_time_utc <= ?2 '
+      'AND sync_status NOT IN (\'failed\', \'parseFailed\');',
+      variables: [
+        Variable.withDateTime(startUtc.toUtc()),
+        Variable.withDateTime(endUtc.toUtc()),
+      ],
+      readsFrom: <ResultSetImplementation<HasResultSet, dynamic>>{activities},
+    ).getSingle();
+    return row.read<int>('cnt');
   }
 
   /// Reclaims unused SQLite pages (`VACUUM`, PRD M5-05).

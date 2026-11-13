@@ -28,10 +28,42 @@ class DioGarminConnectClient implements GarminConnectClient {
   }
 
   static const String defaultBaseUrl = 'https://connect.garmin.com';
+  static const String personalApiBaseUrl = 'https://personal.connectapi.garmin.com';
   static const String _activityListPath =
-      '/activitylist-service/activities/search/activities';
+      '/modern/proxy/activitylist-service/activities/search/activities';
+  static const String _appActivityListPath =
+      '/app/proxy/activitylist-service/activities/search/activities';
   static const String _downloadActivityPrefix =
-      '/download-service/files/activity';
+      '/modern/proxy/download-service/files/activity';
+  static const String _appDownloadActivityPrefix =
+      '/app/proxy/download-service/files/activity';
+
+  /// Exchanges a Garmin Personal API Key (GCDC_...) for a temporary 24h OAuth access token.
+  static Future<String> exchangePersonalApiKey(String apiKey, {Dio? dio}) async {
+    final client = dio ?? Dio();
+    try {
+      final res = await client.post<dynamic>(
+        '$personalApiBaseUrl/personalapitoken-service/personal-api/personal-api-key/token',
+        options: Options(
+          headers: <String, String>{
+            'Authorization': 'ApiKey $apiKey',
+          },
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+      if (res.statusCode == 200 && res.data != null) {
+        final token = res.data.toString().trim();
+        if (token.isNotEmpty) return token;
+      }
+      throw SyncAuthFailure(
+        'Gagal menukarkan Garmin Personal API Key (HTTP ${res.statusCode ?? '-'}). Pastikan API Key benar.',
+      );
+    } on DioException catch (e) {
+      throw SyncAuthFailure(
+        'Koneksi gagal saat menukarkan Personal API Key: ${e.message}',
+      );
+    }
+  }
 
   final SecureCookieStore cookieStore;
   final String _baseUrl;
@@ -57,6 +89,12 @@ class DioGarminConnectClient implements GarminConnectClient {
         followRedirects: true,
         maxRedirects: 5,
         validateStatus: (status) => status != null && status < 500,
+        headers: const <String, String>{
+          'User-Agent':
+              'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
+          'Referer': 'https://connect.garmin.com/modern/',
+          'Origin': 'https://connect.garmin.com',
+        },
       ),
     );
 
@@ -148,15 +186,78 @@ class DioGarminConnectClient implements GarminConnectClient {
       );
     }
 
+    if (session.isPersonalApi) {
+      try {
+        var token = session.bearerToken;
+        if (token == null || token.isEmpty) {
+          token = await exchangePersonalApiKey(session.personalApiKey!, dio: _dio);
+          await cookieStore.saveSession(session.copyWith(bearerToken: () => token));
+        }
+
+        var response = await _dio.get<dynamic>(
+          '$personalApiBaseUrl/activitylist-service/activities/search/activities',
+          queryParameters: const <String, Object>{'start': 0, 'limit': 1},
+          options: Options(
+            headers: <String, Object>{
+              'Authorization': 'Bearer $token',
+            },
+          ),
+        );
+
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          token = await exchangePersonalApiKey(session.personalApiKey!, dio: _dio);
+          await cookieStore.saveSession(session.copyWith(bearerToken: () => token));
+          response = await _dio.get<dynamic>(
+            '$personalApiBaseUrl/activitylist-service/activities/search/activities',
+            queryParameters: const <String, Object>{'start': 0, 'limit': 1},
+            options: Options(
+              headers: <String, Object>{
+                'Authorization': 'Bearer $token',
+              },
+            ),
+          );
+        }
+
+        return classifyResponse(response);
+      } on DioException catch (error) {
+        if (error.response != null) {
+          return classifyResponse(error.response!);
+        }
+        return SessionProbeResult(
+          status: ProbeStatus.networkError,
+          message: error.message ?? 'Gagal menghubungi server Garmin Personal API.',
+        );
+      }
+    }
+
     try {
-      final response = await _dio.get<dynamic>(
+      var response = await _dio.get<dynamic>(
         '$_baseUrl$_activityListPath',
         queryParameters: const <String, Object>{'start': 0, 'limit': 1},
       );
+      if (response.statusCode == 404) {
+        response = await _dio.get<dynamic>(
+          '$_baseUrl$_appActivityListPath',
+          queryParameters: const <String, Object>{'start': 0, 'limit': 1},
+        );
+      }
       return classifyResponse(response);
     } on DioException catch (error) {
       final response = error.response;
       if (response != null) {
+        if (response.statusCode == 404) {
+          try {
+            final fallbackResponse = await _dio.get<dynamic>(
+              '$_baseUrl$_appActivityListPath',
+              queryParameters: const <String, Object>{'start': 0, 'limit': 1},
+            );
+            return classifyResponse(fallbackResponse);
+          } on DioException catch (fallbackError) {
+            if (fallbackError.response != null) {
+              return classifyResponse(fallbackError.response!);
+            }
+          }
+        }
         return classifyResponse(response);
       }
       AppLogger.warn('GarminDioClient', 'Session probe network failure', error);
@@ -203,12 +304,12 @@ class DioGarminConnectClient implements GarminConnectClient {
     }
 
     if (status >= 200 && status < 300) {
-      if (response.data is List) {
+      if (response.data is List || response.data is Map) {
         return SessionProbeResult(status: ProbeStatus.valid, statusCode: status);
       }
       if (response.data is String) {
         final raw = (response.data as String).trimLeft();
-        if (raw.startsWith('[')) {
+        if (raw.startsWith('[') || raw.startsWith('{')) {
           return SessionProbeResult(status: ProbeStatus.valid, statusCode: status);
         }
         return SessionProbeResult(
@@ -261,13 +362,106 @@ class DioGarminConnectClient implements GarminConnectClient {
     required int start,
     int limit = 50,
   }) async {
-    final response = await _dio.get<dynamic>(
-      '$_baseUrl$_activityListPath',
-      queryParameters: <String, Object>{
-        'start': start,
-        'limit': limit,
-      },
-    );
+    final session = await cookieStore.loadSession();
+    if (session != null && session.isPersonalApi) {
+      var token = session.bearerToken;
+      if (token == null || token.isEmpty) {
+        token = await exchangePersonalApiKey(session.personalApiKey!, dio: _dio);
+        await cookieStore.saveSession(session.copyWith(bearerToken: () => token));
+      }
+
+      Response<dynamic> response;
+      try {
+        response = await _dio.get<dynamic>(
+          '$personalApiBaseUrl/activitylist-service/activities/search/activities',
+          queryParameters: <String, Object>{
+            'start': start,
+            'limit': limit,
+          },
+          options: Options(
+            headers: <String, Object>{
+              'Authorization': 'Bearer $token',
+            },
+          ),
+        );
+
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          token = await exchangePersonalApiKey(session.personalApiKey!, dio: _dio);
+          await cookieStore.saveSession(session.copyWith(bearerToken: () => token));
+          response = await _dio.get<dynamic>(
+            '$personalApiBaseUrl/activitylist-service/activities/search/activities',
+            queryParameters: <String, Object>{
+              'start': start,
+              'limit': limit,
+            },
+            options: Options(
+              headers: <String, Object>{
+                'Authorization': 'Bearer $token',
+              },
+            ),
+          );
+        }
+      } on DioException catch (error) {
+        if (error.response != null) {
+          response = error.response!;
+        } else {
+          rethrow;
+        }
+      }
+
+      final classification = classifyResponse(response);
+      if (classification.status == ProbeStatus.rateLimited) {
+        throw RateLimitFailure(classification.message ?? 'Rate limited (429)');
+      }
+      if (classification.status == ProbeStatus.expired) {
+        throw SyncAuthFailure(
+          classification.message ?? 'Garmin Personal API Key kedaluwarsa (${response.statusCode})',
+        );
+      }
+      if ((response.statusCode ?? 500) >= 400) {
+        throw ImportFailure(
+          'Gagal mengambil daftar aktivitas Garmin Personal API (HTTP ${response.statusCode}).',
+        );
+      }
+
+      final rawList = _decodeJsonList(response.data);
+      return rawList
+          .whereType<Map<String, dynamic>>()
+          .map(GarminActivitySummary.fromGarminJson)
+          .toList(growable: false);
+    }
+
+    Response<dynamic> response;
+    try {
+      response = await _dio.get<dynamic>(
+        '$_baseUrl$_activityListPath',
+        queryParameters: <String, Object>{
+          'start': start,
+          'limit': limit,
+        },
+      );
+      if (response.statusCode == 404) {
+        response = await _dio.get<dynamic>(
+          '$_baseUrl$_appActivityListPath',
+          queryParameters: <String, Object>{
+            'start': start,
+            'limit': limit,
+          },
+        );
+      }
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 404) {
+        response = await _dio.get<dynamic>(
+          '$_baseUrl$_appActivityListPath',
+          queryParameters: <String, Object>{
+            'start': start,
+            'limit': limit,
+          },
+        );
+      } else {
+        rethrow;
+      }
+    }
 
     final classification = classifyResponse(response);
     if (classification.status == ProbeStatus.rateLimited) {
@@ -296,13 +490,105 @@ class DioGarminConnectClient implements GarminConnectClient {
 
   @override
   Stream<List<int>> downloadFitStream(int garminActivityId) async* {
-    final response = await _dio.get<ResponseBody>(
-      '$_baseUrl$_downloadActivityPrefix/$garminActivityId',
-      options: Options(
-        responseType: ResponseType.stream,
-        headers: const <String, Object>{'Accept': '*/*'},
-      ),
-    );
+    final session = await cookieStore.loadSession();
+    if (session != null && session.isPersonalApi) {
+      var token = session.bearerToken;
+      if (token == null || token.isEmpty) {
+        token = await exchangePersonalApiKey(session.personalApiKey!, dio: _dio);
+        await cookieStore.saveSession(session.copyWith(bearerToken: () => token));
+      }
+
+      Response<ResponseBody> response;
+      try {
+        response = await _dio.get<ResponseBody>(
+          '$personalApiBaseUrl/download-service/files/activity/$garminActivityId',
+          options: Options(
+            responseType: ResponseType.stream,
+            headers: <String, Object>{
+              'Authorization': 'Bearer $token',
+              'Accept': '*/*',
+            },
+          ),
+        );
+
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          token = await exchangePersonalApiKey(session.personalApiKey!, dio: _dio);
+          await cookieStore.saveSession(session.copyWith(bearerToken: () => token));
+          response = await _dio.get<ResponseBody>(
+            '$personalApiBaseUrl/download-service/files/activity/$garminActivityId',
+            options: Options(
+              responseType: ResponseType.stream,
+              headers: <String, Object>{
+                'Authorization': 'Bearer $token',
+                'Accept': '*/*',
+              },
+            ),
+          );
+        }
+      } on DioException catch (error) {
+        if (error.response?.data is ResponseBody) {
+          response = Response<ResponseBody>(
+            requestOptions: error.requestOptions,
+            data: error.response!.data as ResponseBody,
+            statusCode: error.response!.statusCode,
+          );
+        } else {
+          rethrow;
+        }
+      }
+
+      final status = response.statusCode ?? 0;
+      if (status == 429) {
+        throw const RateLimitFailure('Garmin rate-limit saat mengunduh .FIT (429).');
+      }
+      if (status == 401 || status == 403) {
+        throw SyncAuthFailure(
+          'Sesi Garmin Personal API berakhir saat mengunduh aktivitas $garminActivityId.',
+        );
+      }
+      if (status < 200 || status >= 300 || response.data == null) {
+        throw ImportFailure(
+          'Gagal mengunduh file .FIT aktivitas $garminActivityId (HTTP $status).',
+        );
+      }
+
+      await for (final chunk in response.data!.stream) {
+        yield chunk;
+      }
+      return;
+    }
+
+    Response<ResponseBody> response;
+    try {
+      response = await _dio.get<ResponseBody>(
+        '$_baseUrl$_downloadActivityPrefix/$garminActivityId',
+        options: Options(
+          responseType: ResponseType.stream,
+          headers: const <String, Object>{'Accept': '*/*'},
+        ),
+      );
+      if (response.statusCode == 404) {
+        response = await _dio.get<ResponseBody>(
+          '$_baseUrl$_appDownloadActivityPrefix/$garminActivityId',
+          options: Options(
+            responseType: ResponseType.stream,
+            headers: const <String, Object>{'Accept': '*/*'},
+          ),
+        );
+      }
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 404) {
+        response = await _dio.get<ResponseBody>(
+          '$_baseUrl$_appDownloadActivityPrefix/$garminActivityId',
+          options: Options(
+            responseType: ResponseType.stream,
+            headers: const <String, Object>{'Accept': '*/*'},
+          ),
+        );
+      } else {
+        rethrow;
+      }
+    }
 
     final status = response.statusCode ?? 0;
     if (status == 429) {

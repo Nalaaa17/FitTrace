@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../../core/database/database_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
@@ -13,7 +12,7 @@ import 'onboarding_screen.dart';
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({
     super.key,
-    this.minimumDuration = const Duration(milliseconds: 800),
+    this.minimumDuration = const Duration(milliseconds: 400),
   });
 
   final Duration minimumDuration;
@@ -43,6 +42,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     final destination = prefs.onboardingCompleted
         ? const MainShellScreen()
         : const OnboardingScreen();
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(builder: (_) => destination),
     );

@@ -35,7 +35,8 @@ class CachedOsmTileProvider extends TileProvider {
   final Future<Directory> Function() _cacheDirectoryResolver;
   final int maxCacheBytes;
   final bool offlineOnly;
-  int _writesSincePrune = 0;
+  static int _writesSincePrune = 0;
+  static bool _isPruning = false;
 
   @override
   bool get supportsCancelLoading => true;
@@ -66,6 +67,8 @@ class CachedOsmTileProvider extends TileProvider {
   }
 
   Future<void> pruneLruCache() async {
+    if (_isPruning) return;
+    _isPruning = true;
     try {
       final root = await _cacheDirectoryResolver();
       final tileDir = Directory(p.join(root.path, 'osm_tiles'));
@@ -90,11 +93,19 @@ class CachedOsmTileProvider extends TileProvider {
 
       for (final entry in entries) {
         if (totalBytes <= maxCacheBytes) break;
-        await entry.file.delete();
+        if (await entry.file.exists()) {
+          try {
+            await entry.file.delete();
+          } on FileSystemException {
+            // Ignore if already deleted by concurrent process
+          }
+        }
         totalBytes -= entry.size;
       }
     } on Object catch (e) {
       AppLogger.warn('OsmTileCache', 'Failed pruning OSM tile cache', e);
+    } finally {
+      _isPruning = false;
     }
   }
 }

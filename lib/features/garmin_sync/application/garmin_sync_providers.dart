@@ -230,6 +230,87 @@ class GarminSyncController extends Notifier<GarminSyncState> {
     }
   }
 
+  /// Connects Garmin Connect via official Personal API Key (`GCDC_...`).
+  Future<({bool success, String? errorMessage})> connectWithPersonalApiKey(
+    String apiKey,
+  ) async {
+    final trimmed = apiKey.trim();
+    if (trimmed.isEmpty) {
+      return const (success: false, errorMessage: 'API Key tidak boleh kosong.');
+    }
+
+    state = state.copyWith(
+      isSyncing: true,
+      statusMessage: () => 'Memvalidasi Garmin Personal API Key...',
+      errorMessage: () => null,
+    );
+
+    final cookieStore = ref.read(secureCookieStoreProvider);
+    final previousSession = await cookieStore.loadSession();
+
+    try {
+      final token = await DioGarminConnectClient.exchangePersonalApiKey(trimmed);
+      final session = GarminSessionBundle(
+        cookies: const <String, GarminCookieEntry>{},
+        bearerToken: token,
+        personalApiKey: trimmed,
+        capturedAtUtc: DateTime.now().toUtc(),
+        lastValidatedAtUtc: DateTime.now().toUtc(),
+      );
+      await cookieStore.saveSession(session);
+
+      final client = ref.read(garminConnectClientProvider);
+      final probe = await client.probeSession();
+
+      if (probe.status != ProbeStatus.valid) {
+        if (previousSession != null) {
+          await cookieStore.saveSession(previousSession);
+        } else {
+          await cookieStore.clearSession();
+        }
+        state = state.copyWith(
+          isSyncing: false,
+          statusMessage: () => null,
+          errorMessage: () => probe.message,
+        );
+        return (
+          success: false,
+          errorMessage: probe.message ??
+              'Validasi API Key gagal (HTTP ${probe.statusCode ?? '-'}).',
+        );
+      }
+
+      final db = ref.read(appDatabaseProvider);
+      await db.updatePreferences(
+        const UserPreferencesTableCompanion(garminLoggedIn: Value(true)),
+      );
+
+      state = state.copyWith(
+        authStatus: GarminAuthStatus.connected,
+        isSyncing: false,
+        statusMessage: () => null,
+        errorMessage: () => null,
+      );
+
+      return const (success: true, errorMessage: null);
+    } on Object catch (error) {
+      if (previousSession != null) {
+        await cookieStore.saveSession(previousSession);
+      } else {
+        await cookieStore.clearSession();
+      }
+      state = state.copyWith(
+        isSyncing: false,
+        statusMessage: () => null,
+        errorMessage: () => error.toString(),
+      );
+      return (
+        success: false,
+        errorMessage: 'Gagal menghubungkan API Key: $error',
+      );
+    }
+  }
+
   /// Runs manual or automatic synchronization against Garmin Connect.
   Future<SyncResult?> syncNow({bool isAutoSync = false}) async {
     if (state.isSyncing) return null;

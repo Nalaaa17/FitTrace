@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ import '../../garmin_sync/presentation/garmin_webview_login_screen.dart';
 import '../../import/application/import_providers.dart';
 import '../../import/domain/activity_import_source.dart';
 import '../../stats/application/stats_providers.dart';
+import '../../weekly_target/presentation/widgets/weekly_target_card.dart';
 import '../application/feed_providers.dart';
 import '../data/thumbnail_cache_service.dart';
 import 'feed_filter_sheet.dart';
@@ -33,7 +35,10 @@ class FeedScreen extends ConsumerStatefulWidget {
 class _FeedScreenState extends ConsumerState<FeedScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
   bool _isSearching = false;
+  DateTime? _lastSyncAttemptAt;
+  static const Duration _manualSyncCooldown = Duration(seconds: 15);
 
   @override
   void initState() {
@@ -43,6 +48,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _scrollController
       ..removeListener(_onScroll)
@@ -51,6 +57,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   void _toggleSearch() {
+    _searchDebounce?.cancel();
     setState(() {
       _isSearching = !_isSearching;
       if (!_isSearching) {
@@ -66,13 +73,17 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   void _onSearchChanged(String value) {
-    final trimmed = value.trim();
-    final current = ref.read(feedFilterProvider);
-    ref.read(feedFilterProvider.notifier).update(
-          current.copyWith(
-            searchQuery: () => trimmed.isEmpty ? null : trimmed,
-          ),
-        );
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      final trimmed = value.trim();
+      final current = ref.read(feedFilterProvider);
+      ref.read(feedFilterProvider.notifier).update(
+            current.copyWith(
+              searchQuery: () => trimmed.isEmpty ? null : trimmed,
+            ),
+          );
+    });
   }
 
   Future<void> _renameActivity(ActivityRecord activity) async {
@@ -108,7 +119,28 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     _showBatchSummarySnackBar(summary);
   }
 
-  Future<void> _triggerGarminSync() async {
+  Future<void> _triggerGarminSync({bool showCooldownFeedback = false}) async {
+    final now = DateTime.now();
+    if (_lastSyncAttemptAt != null &&
+        now.difference(_lastSyncAttemptAt!) < _manualSyncCooldown) {
+      if (showCooldownFeedback && mounted) {
+        final remainingSec = _manualSyncCooldown.inSeconds -
+            now.difference(_lastSyncAttemptAt!).inSeconds;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                'Sinkronisasi baru saja dilakukan. Tunggu $remainingSec detik.',
+              ),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+      }
+      return;
+    }
+    _lastSyncAttemptAt = now;
+
     final result =
         await ref.read(garminSyncControllerProvider.notifier).syncNow();
     if (!mounted || result == null) return;
@@ -216,12 +248,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: _toggleSearch,
           ),
-          if (garminConnected && !_isSearching)
-            IconButton(
-              tooltip: 'Sinkronkan Garmin',
-              icon: const Icon(Icons.sync_rounded),
-              onPressed: syncState.isSyncing ? null : _triggerGarminSync,
-            ),
           IconButton(
             tooltip: 'Filter Aktivitas',
             icon: Icon(
@@ -241,7 +267,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               tooltip: 'Sinkronkan Garmin',
               backgroundColor: colors.accentSharp,
               foregroundColor: colors.bgBase,
-              onPressed: syncState.isSyncing ? null : _triggerGarminSync,
+              onPressed: syncState.isSyncing
+                  ? null
+                  : () => _triggerGarminSync(showCooldownFeedback: true),
               child: const Icon(Icons.sync_rounded),
             )
           : null,
@@ -369,7 +397,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         garminConnected: garminConnected,
         onImportTap: _triggerManualImport,
         onResetFilterTap: () => ref.read(feedFilterProvider.notifier).reset(),
-        onSyncTap: _triggerGarminSync,
+        onSyncTap: () => _triggerGarminSync(showCooldownFeedback: true),
       );
     }
 
@@ -385,15 +413,24 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       },
       child: ListView.separated(
         controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
         padding: const EdgeInsets.all(AppTheme.pagePadding),
         itemCount: itemCount,
         separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           if (index == 0) {
-            return _FeedAggregateHeader(
-              statsAsync: statsAsync,
-              unitSystem: unitSystem,
-              colors: colors,
+            return Column(
+              children: [
+                const WeeklyTargetCard(),
+                const SizedBox(height: 8),
+                _FeedAggregateHeader(
+                  statsAsync: statsAsync,
+                  unitSystem: unitSystem,
+                  colors: colors,
+                ),
+              ],
             );
           }
 
@@ -960,7 +997,11 @@ class _ThumbnailPreviewState extends State<_ThumbnailPreview> {
           ),
           clipBehavior: Clip.antiAlias,
           child: file != null
-              ? Image.file(file, fit: BoxFit.cover)
+              ? Image.file(
+                  file,
+                  fit: BoxFit.cover,
+                  cacheWidth: 288,
+                )
               : Center(
                   child: Icon(
                     Icons.route_rounded,
@@ -1120,7 +1161,7 @@ class _FailedActivityCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
-                    'FAILED',
+                    'GAGAL',
                     style: AppTypography.chartAxis(colors.accentSharp),
                   ),
                 ),

@@ -22,7 +22,10 @@ class GarminWebViewLoginScreen extends ConsumerStatefulWidget {
     this.initialUrl = defaultLoginUrl,
   });
 
-  static const String defaultLoginUrl = 'https://connect.garmin.com/signin';
+  static const String defaultLoginUrl =
+      'https://sso.garmin.com/portal/sso/en-US/sign-in?clientId=GarminConnect&service=https%3A%2F%2Fconnect.garmin.com%2Fmodern%2F';
+  static const String ssoAccountPortalUrl =
+      'https://sso.garmin.com/portal/sso/en-US/sign-in?clientId=ACCOUNT_MANAGEMENT_CENTER&service=https%3A%2F%2Fwww.garmin.com%2Fen-US%2Faccount%2F';
   static const String challengeRecoveryUrl = 'https://connect.garmin.com/modern/';
 
   final bool isChallengeFallback;
@@ -60,6 +63,9 @@ class _GarminWebViewLoginScreenState
         : widget.initialUrl;
 
     final controller = WebViewController()
+      ..setUserAgent(
+        'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
+      )
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -88,10 +94,23 @@ class _GarminWebViewLoginScreenState
     if (!mounted || _isVerifying || _autoCaptureTriggered) return;
     final lower = url.toLowerCase();
 
+    if (lower.startsWith('https://www.garmin.com/') &&
+        !lower.contains('/signin') &&
+        !lower.contains('/login') &&
+        !lower.contains('/sign-in') &&
+        !lower.contains('/portal/sso')) {
+      // Sesi SSO Garmin Account Management berhasil, arahkan ke Garmin Connect
+      // agar tiket sesi Connect langsung aktif.
+      _controller?.loadRequest(Uri.parse('https://connect.garmin.com/modern/'));
+      return;
+    }
+
     final isAuthenticatedLanding =
         lower.startsWith('https://connect.garmin.com/') &&
             !lower.contains('/signin') &&
             !lower.contains('/login') &&
+            !lower.contains('/sign-in') &&
+            !lower.contains('/portal/sso') &&
             !lower.contains('/cdn-cgi/challenge') &&
             !lower.contains('captcha');
 
@@ -133,9 +152,37 @@ class _GarminWebViewLoginScreenState
         return;
       }
 
+      String? bearerToken;
+      String? csrfToken;
+      try {
+        final rawToken = await _controller?.runJavaScriptReturningResult(
+          'window.localStorage.getItem("token") || window.localStorage.getItem("jwt") || window.sessionStorage.getItem("token") || ""',
+        );
+        if (rawToken != null) {
+          final cleaned = rawToken.toString().replaceAll('"', '').trim();
+          if (cleaned.isNotEmpty && cleaned != 'null') {
+            bearerToken = cleaned;
+          }
+        }
+        final rawCsrf = await _controller?.runJavaScriptReturningResult(
+          'window.localStorage.getItem("connect-csrf-token") || ""',
+        );
+        if (rawCsrf != null) {
+          final cleaned = rawCsrf.toString().replaceAll('"', '').trim();
+          if (cleaned.isNotEmpty && cleaned != 'null') {
+            csrfToken = cleaned;
+          }
+        }
+      } on Object catch (_) {}
+
+      final effectiveSession = session.copyWith(
+        bearerToken: bearerToken != null ? () => bearerToken : null,
+        csrfToken: csrfToken != null ? () => csrfToken : null,
+      );
+
       final result = await ref
           .read(garminSyncControllerProvider.notifier)
-          .verifyAndSaveLoginSession(session);
+          .verifyAndSaveLoginSession(effectiveSession);
 
       if (!mounted) return;
       if (result.success) {
@@ -171,6 +218,29 @@ class _GarminWebViewLoginScreenState
               : 'Login Garmin Connect',
         ),
         actions: <Widget>[
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.swap_horiz_rounded),
+            tooltip: 'Ganti Halaman Login',
+            onSelected: (url) {
+              _autoCaptureTriggered = false;
+              _controller?.loadRequest(Uri.parse(url));
+            },
+            itemBuilder: (context) => const <PopupMenuEntry<String>>[
+              PopupMenuItem(
+                value: GarminWebViewLoginScreen.defaultLoginUrl,
+                child: Text('Garmin Connect SSO'),
+              ),
+              PopupMenuItem(
+                value: GarminWebViewLoginScreen.ssoAccountPortalUrl,
+                child: Text('Garmin Account Management (SSO)'),
+              ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Muat ulang',
+            onPressed: () => _controller?.reload(),
+          ),
           TextButton(
             onPressed: _isVerifying || !_platformSupported
                 ? null

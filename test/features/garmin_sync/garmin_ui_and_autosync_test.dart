@@ -20,6 +20,8 @@ import 'package:fit_trace/features/import/application/import_providers.dart';
 import 'package:fit_trace/features/import/data/fit_archive_storage.dart';
 import 'package:fit_trace/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:fit_trace/features/shell/presentation/main_shell_screen.dart';
+import 'package:fit_trace/features/story_share/application/story_share_providers.dart';
+import 'package:fit_trace/features/story_share/data/story_image_cache_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -145,6 +147,11 @@ void main() {
               runtimePermissionServiceProvider.overrideWithValue(
                 _StubPermissionService(),
               ),
+              storyImageCacheServiceProvider.overrideWithValue(
+                StoryImageCacheService(
+                  cacheDirectoryResolver: () async => Directory.systemTemp,
+                ),
+              ),
             ],
             child: const FitTraceApp(home: OnboardingScreen()),
           ),
@@ -230,6 +237,11 @@ void main() {
               batteryChargingReaderProvider.overrideWithValue(
                 _StubBatteryReader(),
               ),
+              storyImageCacheServiceProvider.overrideWithValue(
+                StoryImageCacheService(
+                  cacheDirectoryResolver: () async => Directory.systemTemp,
+                ),
+              ),
             ],
             child: const FitTraceApp(home: MainShellScreen()),
           ),
@@ -246,14 +258,14 @@ void main() {
         // failed probe with expired session -> shows persistent re-login banner.
         expect(client.probeCalls, 1);
         expect(find.text('Login Ulang'), findsOneWidget);
-        expect(find.text('FAILED'), findsOneWidget);
+        expect(find.text('GAGAL'), findsOneWidget);
 
-        // Once session recovers, tapping Coba lagi re-downloads and marks SYNCED.
+        // Once session recovers, tapping Coba lagi re-downloads and marks TERSINKRON.
         client.probeStatus = ProbeStatus.valid;
         await tester.tap(find.text('Coba lagi'));
         await tester.pump();
         for (var i = 0; i < 40; i++) {
-          if (find.text('SYNCED').evaluate().isNotEmpty &&
+          if (find.text('TERSINKRON').evaluate().isNotEmpty &&
               find.text('Login Ulang').evaluate().isEmpty) {
             break;
           }
@@ -263,7 +275,7 @@ void main() {
           await tester.pump();
         }
 
-        expect(find.text('SYNCED'), findsOneWidget);
+        expect(find.text('TERSINKRON'), findsOneWidget);
         expect(find.text('Login Ulang'), findsNothing);
       } finally {
         await tester.pumpWidget(const SizedBox.shrink());

@@ -68,8 +68,8 @@ final saveCsvHandlerProvider = Provider<SaveBackupZipHandler>((ref) {
 
 final localNotificationDispatcherProvider =
     Provider<LocalNotificationDispatcher>((ref) {
-  return const MethodChannelLocalNotificationDispatcher();
-});
+      return const MethodChannelLocalNotificationDispatcher();
+    });
 
 final backupReminderServiceProvider = Provider<BackupReminderService>((ref) {
   return BackupReminderService(
@@ -185,12 +185,14 @@ class BackupController extends Notifier<BackupOperationState> {
         return null;
       }
 
-      final summary = await ref.read(backupRestoreServiceProvider).restoreFromZipBytes(
-        zipBytes,
-        onProgress: (stage, progress) {
-          state = state.copyWith(stage: stage, progress: progress);
-        },
-      );
+      final summary = await ref
+          .read(backupRestoreServiceProvider)
+          .restoreFromZipBytes(
+            zipBytes,
+            onProgress: (stage, progress) {
+              state = state.copyWith(stage: stage, progress: progress);
+            },
+          );
       ref.invalidate(localStorageStatsProvider);
       await ref.read(feedPagingProvider.notifier).refresh();
       state = const BackupOperationState();
@@ -231,8 +233,9 @@ class BackupController extends Notifier<BackupOperationState> {
     );
 
     try {
-      final result =
-          await ref.read(backupRestoreServiceProvider).compactDatabase();
+      final result = await ref
+          .read(backupRestoreServiceProvider)
+          .compactDatabase();
       ref.invalidate(localStorageStatsProvider);
       state = const BackupOperationState();
       return result;
@@ -241,6 +244,12 @@ class BackupController extends Notifier<BackupOperationState> {
       state = BackupOperationState(errorMessage: error.toString());
       return null;
     }
+  }
+
+  Future<int> clearTileCache() async {
+    final freed = await ref.read(backupRestoreServiceProvider).clearTileCache();
+    ref.invalidate(localStorageStatsProvider);
+    return freed;
   }
 
   Future<({bool saved, int rowCount, Uri? uri})> exportCsvSummary() async {
@@ -255,10 +264,9 @@ class BackupController extends Notifier<BackupOperationState> {
 
     try {
       final prefs = await ref.read(appDatabaseProvider).getPreferences();
-      final payload =
-          await ref.read(csvExportServiceProvider).buildActivitiesCsv(
-                unitSystem: prefs.unitSystem,
-              );
+      final payload = await ref
+          .read(csvExportServiceProvider)
+          .buildActivitiesCsv(unitSystem: prefs.unitSystem);
       final uri = await ref.read(saveCsvHandlerProvider)(
         fileName: payload.fileName,
         bytes: payload.bytes,
@@ -275,5 +283,5 @@ class BackupController extends Notifier<BackupOperationState> {
 
 final backupControllerProvider =
     NotifierProvider<BackupController, BackupOperationState>(
-  BackupController.new,
-);
+      BackupController.new,
+    );

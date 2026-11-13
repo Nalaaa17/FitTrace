@@ -376,6 +376,14 @@ class GarminSyncEngine {
       startTimeUtc: summary.startTimeUtc,
       distanceMeters: summary.distanceMeters,
       durationTotalSec: summary.durationTotalSec,
+      durationMovingSec: summary.durationMovingSec,
+      avgHeartRate: summary.averageHR,
+      maxHeartRate: summary.maxHR,
+      avgCadence: summary.averageCadence,
+      totalElevationGainM: summary.elevationGainM ?? 0.0,
+      totalElevationLossM: summary.elevationLossM ?? 0.0,
+      caloriesKcal: summary.caloriesKcal ?? 0,
+      zoneDurationsSec: summary.zoneDurationsSec,
     );
     return ImportOutcome(
       type: ImportOutcomeType.failed,
