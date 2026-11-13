@@ -194,7 +194,21 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 ),
                 onChanged: _onSearchChanged,
               )
-            : const Text('FitTrace'),
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      width: 24,
+                      height: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('FitTrace'),
+                ],
+              ),
         actions: <Widget>[
           IconButton(
             key: const ValueKey<String>('feed_search_toggle'),

@@ -344,10 +344,17 @@ class SettingsScreen extends ConsumerWidget {
                       onTap: () => _showPrivacySheet(context, colors),
                     ),
                     const Divider(),
-                    const ListTile(
-                      leading: Icon(Icons.info_outline),
-                      title: Text('FitTrace v1.1.0'),
-                      subtitle: Text('com.fittrace.app • Local-First Running Analytics'),
+                    ListTile(
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          width: 36,
+                          height: 36,
+                        ),
+                      ),
+                      title: const Text('FitTrace v1.1.0'),
+                      subtitle: const Text('com.fittrace.app • Local-First Running Analytics'),
                     ),
                   ],
                 ),

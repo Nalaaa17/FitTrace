@@ -375,12 +375,26 @@ class _StatsStickerOverlay extends StatelessWidget {
               border: Border.all(color: hairline),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: Text(
-              'FITTRACE',
-              style: AppTypography.metricLabel(secondaryInk).copyWith(
-                fontSize: 9,
-                letterSpacing: 2.0,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    width: 12,
+                    height: 12,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  'FITTRACE',
+                  style: AppTypography.metricLabel(secondaryInk).copyWith(
+                    fontSize: 9,
+                    letterSpacing: 2.0,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

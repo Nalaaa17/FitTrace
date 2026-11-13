@@ -5,32 +5,23 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:fit_tool/fit_tool.dart';
-import 'package:fit_trace/app.dart';
 import 'package:fit_trace/core/database/app_database.dart';
-import 'package:fit_trace/core/database/database_provider.dart';
-import 'package:fit_trace/features/backup/application/backup_providers.dart';
 import 'package:fit_trace/features/backup/data/backup_reminder_service.dart';
 import 'package:fit_trace/features/backup/data/backup_restore_service.dart';
 import 'package:fit_trace/features/backup/data/csv_export_service.dart';
 import 'package:fit_trace/features/feed/data/thumbnail_cache_service.dart';
-import 'package:fit_trace/features/feed/presentation/feed_screen.dart';
 import 'package:fit_trace/features/garmin_sync/application/garmin_sync_engine.dart';
-import 'package:fit_trace/features/garmin_sync/application/garmin_sync_providers.dart';
 import 'package:fit_trace/features/garmin_sync/data/background_sync_scheduler.dart';
 import 'package:fit_trace/features/garmin_sync/data/secure_cookie_store.dart';
 import 'package:fit_trace/features/garmin_sync/data/webview_cookie_extractor.dart';
 import 'package:fit_trace/features/garmin_sync/domain/garmin_connect_client.dart';
 import 'package:fit_trace/features/garmin_sync/domain/garmin_session.dart';
 import 'package:fit_trace/features/garmin_sync/domain/garmin_session_refresher.dart';
-import 'package:fit_trace/features/import/application/import_providers.dart';
 import 'package:fit_trace/features/import/data/fit_archive_storage.dart';
 import 'package:fit_trace/features/import/data/fit_import_pipeline.dart';
 import 'package:fit_trace/features/stats/application/stats_providers.dart';
-import 'package:fit_trace/features/stats/presentation/stats_screen.dart';
 import 'package:fit_trace/features/story_share/data/story_image_cache_service.dart';
 import 'package:fit_trace/features/story_share/domain/story_template_config.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:metrics_engine/metrics_engine.dart';
 
@@ -150,11 +141,6 @@ class _RecordingNotificationDispatcher implements LocalNotificationDispatcher {
   }) async {
     count++;
   }
-}
-
-class _NoopBackgroundSyncScheduler implements BackgroundSyncScheduler {
-  @override
-  Future<void> applySchedule(BackgroundSyncScheduleConfig config) async {}
 }
 
 void main() {
@@ -485,6 +471,7 @@ void main() {
           syncStatus: SyncStatus.localOnly,
           fitFileHash: 'ui_h2',
         );
+        expect(id2, greaterThan(id1));
 
         // M3-08: Feed search filter in SQLite
         final searchSenayan = await db.fetchFeedActivities(

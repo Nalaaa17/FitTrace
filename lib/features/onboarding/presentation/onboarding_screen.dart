@@ -135,15 +135,37 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: _completeManualMode,
-            child: Text(
-              'Lewati',
-              style: TextStyle(color: colors.textSecondary),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    width: 26,
+                    height: 26,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'FITTRACE',
+                  style: AppTypography.metricLabel(colors.textPrimary).copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
             ),
-          ),
+            TextButton(
+              onPressed: _completeManualMode,
+              child: Text(
+                'Lewati',
+                style: TextStyle(color: colors.textSecondary),
+              ),
+            ),
+          ],
         ),
         Expanded(
           child: PageView.builder(
