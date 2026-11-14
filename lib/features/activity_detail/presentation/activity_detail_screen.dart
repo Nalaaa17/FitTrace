@@ -291,6 +291,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                 context,
                 act.id,
                 shoeAsync.value,
+                colors,
               ),
               const SizedBox(height: 16),
 
@@ -382,75 +383,92 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     BuildContext context,
     int activityId,
     ShoeWithUsage? shoeWithUsage,
+    FitTraceColors colors,
   ) {
     final shoe = shoeWithUsage?.shoe;
     final isWorn = shoeWithUsage?.isAlertWorn ?? false;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E222B),
+    return Card(
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isWorn
-              ? const Color(0xFFFF5252).withValues(alpha: 0.5)
-              : Colors.white.withValues(alpha: 0.08),
+        onTap: () => _selectShoeForActivity(context, activityId, shoe?.id),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isWorn
+                      ? const Color(0xFFFF5252).withValues(alpha: 0.18)
+                      : const Color(0xFF00E676).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.directions_run_rounded,
+                  color: isWorn ? const Color(0xFFFF5252) : const Color(0xFF00E676),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      shoe != null ? shoe.name : 'Pilih Sepatu Lari',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      shoeWithUsage != null
+                          ? '${shoeWithUsage.currentDistanceKm.toStringAsFixed(1)} / ${shoe!.maxDistanceKm.toStringAsFixed(0)} km (${shoeWithUsage.wearPercent.toStringAsFixed(0)}% aus)${isWorn ? " • ⚠️ Aus!" : ""}'
+                          : 'Catat jarak tempuh & pantau keausan sol sepatu ini',
+                      style: TextStyle(
+                        color: isWorn
+                            ? const Color(0xFFFF5252)
+                            : colors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: isWorn ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: colors.bgElevated,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      shoe == null ? 'Pilih' : 'Ganti',
+                      style: const TextStyle(
+                        color: Color(0xFF00E676),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 16,
+                      color: Color(0xFF00E676),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: isWorn
-                  ? const Color(0xFFFF5252).withValues(alpha: 0.18)
-                  : const Color(0xFF00E676).withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.directions_run_rounded,
-              color: isWorn ? const Color(0xFFFF5252) : const Color(0xFF00E676),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  shoe != null ? shoe.name : 'Belum Ada Sepatu Dipilih',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  shoeWithUsage != null
-                      ? '${shoeWithUsage.currentDistanceKm.toStringAsFixed(1)} / ${shoe!.maxDistanceKm.toStringAsFixed(0)} km (${shoeWithUsage.wearPercent.toStringAsFixed(0)}% aus)${isWorn ? " • ⚠️ Aus!" : ""}'
-                      : 'Pilih sepatu untuk melacak jarak tempuh & keausan sol',
-                  style: TextStyle(
-                    color: isWorn
-                        ? const Color(0xFFFF5252)
-                        : Colors.white.withValues(alpha: 0.6),
-                    fontSize: 11,
-                    fontWeight: isWorn ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF00E676),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            ),
-            onPressed: () => _selectShoeForActivity(context, activityId, shoe?.id),
-            child: Text(shoe == null ? 'Pilih' : 'Ganti'),
-          ),
-        ],
       ),
     );
   }
@@ -463,7 +481,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     final shoes = await ref.read(shoesNotifierProvider.future);
     if (!context.mounted) return;
 
-    showModalBottomSheet<void>(
+    await showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF1E222B),
       shape: const RoundedRectangleBorder(
@@ -494,9 +512,17 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                   trailing: currentShoeId == null
                       ? const Icon(Icons.check, color: Color(0xFF00E676))
                       : null,
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(ctx);
-                    ref.read(assignShoeControllerProvider)(activityId, null);
+                    await ref.read(assignShoeControllerProvider)(activityId, null);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Sepatu dilepas dari aktivitas ini.'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
                   },
                 ),
                 const Divider(color: Colors.white12),
@@ -538,9 +564,17 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                       trailing: isSelected
                           ? const Icon(Icons.check, color: Color(0xFF00E676))
                           : null,
-                      onTap: () {
+                      onTap: () async {
                         Navigator.pop(ctx);
-                        ref.read(assignShoeControllerProvider)(activityId, shoe.id);
+                        await ref.read(assignShoeControllerProvider)(activityId, shoe.id);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Sepatu ${shoe.name} berhasil dipilih.'),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
                       },
                     );
                   }),

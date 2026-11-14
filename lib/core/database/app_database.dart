@@ -1172,9 +1172,10 @@ class AppDatabase extends _$AppDatabase {
     required int? shoeId,
   }) async {
     await _ensureFeatureTables();
+    final nowSeconds = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
     await customStatement(
       'UPDATE activities SET shoe_id = ?, updated_at = ? WHERE id = ?;',
-      <Object?>[shoeId, DateTime.now().toUtc(), activityId],
+      <Object?>[shoeId, nowSeconds, activityId],
     );
   }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../application/weekly_target_providers.dart';
 import '../../domain/weekly_target.dart';
 
@@ -10,11 +12,12 @@ class WeeklyTargetCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final targetAsync = ref.watch(weeklyTargetProvider);
+    final colors = context.fitColors;
 
     return targetAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
-      data: (progress) => _buildCard(context, ref, progress),
+      data: (progress) => _buildCard(context, ref, progress, colors),
     );
   }
 
@@ -22,72 +25,51 @@ class WeeklyTargetCard extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     WeeklyTargetProgress progress,
+    FitTraceColors colors,
   ) {
     final isAchieved = progress.isAchieved;
-    final primaryColor = isAchieved
-        ? const Color(0xFF00E676)
-        : const Color(0xFF00E5FF);
+    final accentColor = isAchieved ? const Color(0xFF00E676) : const Color(0xFF00E5FF);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E222B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isAchieved
-              ? const Color(0xFF00E676).withValues(alpha: 0.4)
-              : Colors.white.withValues(alpha: 0.08),
-        ),
-      ),
+    return Card(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Title + Edit button
+            // Header Row: Icon + Label + Ubah Target Button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: primaryColor.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        isAchieved
-                            ? Icons.emoji_events_rounded
-                            : Icons.track_changes_rounded,
-                        color: primaryColor,
-                        size: 18,
-                      ),
+                    Icon(
+                      isAchieved
+                          ? Icons.emoji_events_rounded
+                          : Icons.track_changes_rounded,
+                      color: accentColor,
+                      size: 18,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'TARGET MINGGU INI',
-                      style: TextStyle(
-                        color: Color(0xFF8E9BAE),
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.6,
-                      ),
+                      style: AppTypography.metricLabel(colors.textSecondary),
                     ),
                   ],
                 ),
                 InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => _showEditTargetDialog(context, ref, progress.targetKm),
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () =>
+                      _showEditTargetDialog(context, ref, progress.targetKm),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     child: Row(
                       children: [
                         Text(
-                          'Ubah Target',
+                          'Ubah',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.55),
-                            fontSize: 11,
+                            color: colors.textSecondary,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -95,7 +77,7 @@ class WeeklyTargetCard extends ConsumerWidget {
                         Icon(
                           Icons.edit_outlined,
                           size: 13,
-                          color: Colors.white.withValues(alpha: 0.55),
+                          color: colors.textSecondary,
                         ),
                       ],
                     ),
@@ -104,9 +86,9 @@ class WeeklyTargetCard extends ConsumerWidget {
               ],
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
-            // Progress text & percentage
+            // Main Numbers Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -118,17 +100,20 @@ class WeeklyTargetCard extends ConsumerWidget {
                   children: [
                     Text(
                       progress.currentKm.toStringAsFixed(1),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        fontFamily: AppTypography.displayFontFamily,
+                        fontSize: 26,
                         fontWeight: FontWeight.bold,
-                        fontSize: 22,
+                        color: colors.textPrimary,
+                        letterSpacing: -0.5,
                       ),
                     ),
+                    const SizedBox(width: 4),
                     Text(
-                      ' / ${progress.targetKm.toStringAsFixed(0)} km',
+                      '/ ${progress.targetKm.toStringAsFixed(0)} km',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 14,
+                        color: colors.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -137,9 +122,9 @@ class WeeklyTargetCard extends ConsumerWidget {
                 Text(
                   '${(progress.progressPercent * 100).toStringAsFixed(0)}%',
                   style: TextStyle(
-                    color: primaryColor,
+                    color: accentColor,
                     fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                    fontSize: 17,
                   ),
                 ),
               ],
@@ -147,20 +132,20 @@ class WeeklyTargetCard extends ConsumerWidget {
 
             const SizedBox(height: 8),
 
-            // Progress bar
+            // Linear Progress Bar
             ClipRRect(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: progress.progressPercent,
-                minHeight: 7,
-                backgroundColor: Colors.white.withValues(alpha: 0.08),
-                valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                minHeight: 6,
+                backgroundColor: colors.bgElevated,
+                valueColor: AlwaysStoppedAnimation<Color>(accentColor),
               ),
             ),
 
             const SizedBox(height: 10),
 
-            // Bottom summary: status message & activity count
+            // Footer info
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -172,18 +157,16 @@ class WeeklyTargetCard extends ConsumerWidget {
                     style: TextStyle(
                       color: isAchieved
                           ? const Color(0xFF00E676)
-                          : Colors.white.withValues(alpha: 0.65),
-                      fontSize: 11,
-                      fontWeight: isAchieved ? FontWeight.bold : FontWeight.normal,
+                          : colors.textSecondary,
+                      fontSize: 12,
+                      fontWeight:
+                          isAchieved ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                 ),
                 Text(
                   '${progress.activityCount} lari',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.45),
-                    fontSize: 11,
-                  ),
+                  style: AppTypography.metricLabel(colors.textSecondary),
                 ),
               ],
             ),
@@ -198,7 +181,8 @@ class WeeklyTargetCard extends ConsumerWidget {
     WidgetRef ref,
     double currentTargetKm,
   ) {
-    final ctrl = TextEditingController(text: currentTargetKm.toStringAsFixed(0));
+    final ctrl =
+        TextEditingController(text: currentTargetKm.toStringAsFixed(0));
 
     showDialog(
       context: context,
@@ -262,7 +246,8 @@ class WeeklyTargetCard extends ConsumerWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                  child:
+                      const Text('Batal', style: TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(

@@ -421,17 +421,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           if (index == 0) {
-            return Column(
-              children: [
-                const WeeklyTargetCard(),
-                const SizedBox(height: 8),
-                _FeedAggregateHeader(
-                  statsAsync: statsAsync,
-                  unitSystem: unitSystem,
-                  colors: colors,
-                ),
-              ],
-            );
+            return const WeeklyTargetCard();
           }
 
           final activityIndex = index - 1;
@@ -588,73 +578,6 @@ class _ActiveFilterBar extends StatelessWidget {
             child: const Text('Hapus Filter'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _FeedAggregateHeader extends ConsumerWidget {
-  const _FeedAggregateHeader({
-    required this.statsAsync,
-    required this.unitSystem,
-    required this.colors,
-  });
-
-  final AsyncValue<ActivityAggregateStats> statsAsync;
-  final String unitSystem;
-  final FitTraceColors colors;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final period =
-        ref.watch(userPreferencesProvider).value?.weeklyMonthlyToggle ??
-            'weekly';
-    final stats = statsAsync.value;
-    final dist = stats != null
-        ? UnitFormatter.formatDistanceValue(
-            stats.totalDistanceMeters,
-            unitSystem,
-            decimals: 1,
-          )
-        : '0.0';
-    final distUnit = UnitFormatter.distanceUnitLabel(unitSystem);
-    final pace = stats != null
-        ? UnitFormatter.formatPaceWithUnit(stats.avgPaceSecPerKm, unitSystem)
-        : '--\'--"${UnitFormatter.paceUnitSuffix(unitSystem)}';
-    final count = stats?.activityCount ?? 0;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    period == 'monthly' ? 'BULAN INI' : 'MINGGU INI',
-                    style: AppTypography.metricLabel(colors.textSecondary),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$dist $distUnit  •  $pace  •  $count lari',
-                    style: AppTypography.splitTable(colors.textPrimary),
-                  ),
-                ],
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                setWeeklyMonthlyMode(
-                  ref,
-                  period == 'weekly' ? 'monthly' : 'weekly',
-                );
-              },
-              child: Text(period == 'weekly' ? 'Bulan' : 'Minggu'),
-            ),
-          ],
-        ),
       ),
     );
   }
