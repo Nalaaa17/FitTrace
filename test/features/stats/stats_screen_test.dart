@@ -125,6 +125,7 @@ void main() {
                   backgroundSyncIntervalMinutes: 15,
                   onboardingCompleted: true,
                   backupReminderEnabled: false,
+                  weeklyTargetKm: 30.0,
                 ),
               )),
           allTimeBestEffortsProvider.overrideWith((ref) async => const <String, BestEffortPrRecord>{}),
@@ -175,11 +176,14 @@ void main() {
     expect(find.text('152 BPM'), findsOneWidget);
     expect(find.text('178 BPM'), findsOneWidget);
     expect(find.text('1850 kcal'), findsOneWidget);
-    expect(find.text('✨ Base Dominan'), findsOneWidget);
+    expect(find.text('Base Dominan'), findsOneWidget);
 
     expect(find.text('ELEVASI & KADENSI LANGKAH GARMIN'), findsOneWidget);
     expect(find.text('+120 m'), findsOneWidget);
     expect(find.text('169 SPM'), findsOneWidget);
     expect(find.text('Baik (Standar)'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(Duration.zero);
   });
 }

@@ -14,7 +14,9 @@ void main() {
 
   // 1. Global Flutter framework error hook (Widget build/layout crashes)
   FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
+    if (kDebugMode) {
+      FlutterError.presentError(details);
+    }
     AppLogger.error(
       'FlutterFrameworkError',
       details.exceptionAsString(),
@@ -78,13 +80,19 @@ void main() {
 @pragma('vm:entry-point')
 Future<void> backgroundSyncMain() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final ok = await executeHeadlessBackgroundSync();
-  const workerChannel = MethodChannel('com.fittrace.app/background_sync_worker');
+  var ok = false;
   try {
-    await workerChannel.invokeMethod<void>('complete', <String, dynamic>{
-      'success': ok,
-    });
-  } on MissingPluginException {
-    // Expected if invoked outside native worker wrapper.
+    ok = await executeHeadlessBackgroundSync();
+  } on Object catch (error, stack) {
+    AppLogger.error('BackgroundSyncMain', 'Headless background sync failed', error, stack);
+  } finally {
+    const workerChannel = MethodChannel('com.fittrace.app/background_sync_worker');
+    try {
+      await workerChannel.invokeMethod<void>('complete', <String, dynamic>{
+        'success': ok,
+      });
+    } on MissingPluginException {
+      // Expected if invoked outside native worker wrapper.
+    }
   }
 }

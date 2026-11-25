@@ -86,6 +86,31 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     });
   }
 
+  Future<void> _confirmDeleteActivity(ActivityRecord activity) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Aktivitas?'),
+        content: Text(
+          'Hapus "${activity.title}" secara permanen dari riwayat lokal?',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(importControllerProvider.notifier).deleteActivity(activity.id);
+    }
+  }
+
   Future<void> _renameActivity(ActivityRecord activity) async {
     final res = await showDialog<TextInputDialogResult>(
       context: context,
@@ -396,7 +421,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         hasActiveFilter: !filter.isEmpty,
         garminConnected: garminConnected,
         onImportTap: _triggerManualImport,
-        onResetFilterTap: () => ref.read(feedFilterProvider.notifier).reset(),
+        onResetFilterTap: () {
+          _searchController.clear();
+          setState(() => _isSearching = false);
+          ref.read(feedFilterProvider.notifier).reset();
+        },
         onSyncTap: () => _triggerGarminSync(showCooldownFeedback: true),
       );
     }
@@ -416,7 +445,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
-        padding: const EdgeInsets.all(AppTheme.pagePadding),
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.pagePadding,
+          AppTheme.pagePadding,
+          AppTheme.pagePadding,
+          AppTheme.pagePadding + 72,
+        ),
         itemCount: itemCount,
         separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
@@ -465,9 +499,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                     ),
                   );
               },
-              onDelete: () => ref
-                  .read(importControllerProvider.notifier)
-                  .deleteActivity(activity.id),
+              onDelete: () => _confirmDeleteActivity(activity),
             );
           }
 
@@ -478,9 +510,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             thumbnails: ref.read(thumbnailCacheServiceProvider),
             prBadges: prLabelsByActivity[activity.id] ?? const <String>[],
             onRenameTap: () => _renameActivity(activity),
-            onDeleteTap: () => ref
-                .read(importControllerProvider.notifier)
-                .deleteActivity(activity.id),
+            onDeleteTap: () => _confirmDeleteActivity(activity),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -986,9 +1016,8 @@ class _GarminAttentionBanner extends StatelessWidget {
           FilledButton(
             onPressed: onResolveTap,
             style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              minimumSize: const Size(64, 40),
             ),
             child: Text(isChallenge ? 'Verifikasi' : 'Login Ulang'),
           ),

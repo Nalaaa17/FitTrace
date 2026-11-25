@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:metrics_engine/metrics_engine.dart';
 
+import '../../../core/config/app_info.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/database_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/widgets/text_input_dialog.dart';
 import '../../backup/application/backup_providers.dart';
 import '../../backup/data/backup_restore_service.dart';
 import '../../garmin_sync/application/garmin_sync_providers.dart';
@@ -212,7 +214,7 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Minimum OS Android 15 menit (ADR-003 default: aktif di seluler & baterai)',
+                            'Minimum OS Android 15 menit (default: aktif di seluler & baterai)',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           const SizedBox(height: 10),
@@ -256,12 +258,12 @@ class SettingsScreen extends ConsumerWidget {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00E676).withOpacity(0.15),
+                      color: colors.accentSuccess.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.directions_run_rounded,
-                      color: Color(0xFF00E676),
+                      color: colors.accentSuccess,
                     ),
                   ),
                   title: const Text(
@@ -382,7 +384,7 @@ class SettingsScreen extends ConsumerWidget {
                           height: 36,
                         ),
                       ),
-                      title: const Text('FitTrace v1.0.0'),
+                      title: const Text(AppInfo.versionLabel),
                       subtitle: const Text('com.fittrace.app • Local-First Running Analytics'),
                     ),
                   ],
@@ -548,8 +550,8 @@ class SettingsScreen extends ConsumerWidget {
   ) async {
     final session = await ref.read(secureCookieStoreProvider).loadSession();
     if (!context.mounted) return;
-    final currentKey = session?.personalApiKey ?? '';
-    final textController = TextEditingController(text: currentKey);
+    final hasExistingKey = (session?.personalApiKey ?? '').isNotEmpty;
+    final textController = TextEditingController();
 
     final key = await showDialog<String>(
       context: context,
@@ -559,14 +561,17 @@ class SettingsScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            const Text(
-              'Masukkan Personal API Key resmi dari Garmin Connect (dimulai dengan GCDC_...).',
-              style: TextStyle(fontSize: 13),
+            Text(
+              hasExistingKey
+                  ? 'API Key sudah tersimpan aman. Masukkan kunci baru jika ingin menggantinya.'
+                  : 'Masukkan Personal API Key resmi dari Garmin Connect (dimulai dengan GCDC_...).',
+              style: const TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: textController,
-              maxLines: 3,
+              maxLines: 1,
+              obscureText: true,
               autocorrect: false,
               enableSuggestions: false,
               style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
@@ -591,6 +596,7 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+    textController.dispose();
 
     if (key == null || key.isEmpty || !context.mounted) return;
 
@@ -857,9 +863,9 @@ class SettingsScreen extends ConsumerWidget {
     required AppDatabase db,
     int? currentManual,
   }) async {
-    final result = await showDialog<({String action, String text})>(
+    final result = await showDialog<TextInputDialogResult>(
       context: context,
-      builder: (_) => _TextInputDialog(
+      builder: (_) => TextInputDialog(
         title: 'Atur HRmax Manual',
         initialValue: currentManual?.toString() ?? '',
         keyboardType: TextInputType.number,
@@ -895,9 +901,9 @@ class SettingsScreen extends ConsumerWidget {
     required AppDatabase db,
     required List<int> current,
   }) async {
-    final result = await showDialog<({String action, String text})>(
+    final result = await showDialog<TextInputDialogResult>(
       context: context,
-      builder: (_) => _TextInputDialog(
+      builder: (_) => TextInputDialog(
         title: 'Batas Zona HR 2–5 (%)',
         initialValue: current.join(','),
         labelText: '4 angka persen (dipisah koma)',
@@ -1027,15 +1033,14 @@ class SettingsScreen extends ConsumerWidget {
     );
     if (step1 != true || !context.mounted) return;
 
-    final result = await showDialog<({String action, String text})>(
+    final result = await showDialog<TextInputDialogResult>(
       context: context,
-      builder: (_) => const _TextInputDialog(
+      builder: (_) => const TextInputDialog(
         title: 'Konfirmasi Terakhir',
         promptText:
             'Ketik RESET untuk menghapus seluruh data lokal secara permanen:',
         hintText: 'RESET',
         textCapitalization: TextCapitalization.characters,
-        autofocus: true,
         confirmLabel: 'Hapus Permanen',
       ),
     );
@@ -1117,98 +1122,6 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(text, style: AppTypography.metricLabel(colors.textSecondary));
-  }
-}
-
-class _TextInputDialog extends StatefulWidget {
-  const _TextInputDialog({
-    required this.title,
-    this.initialValue = '',
-    this.promptText,
-    this.labelText,
-    this.hintText,
-    this.keyboardType,
-    this.textCapitalization = TextCapitalization.none,
-    this.autofocus = false,
-    this.secondaryActionLabel,
-    this.secondaryActionKey,
-    required this.confirmLabel,
-  });
-
-  final String title;
-  final String initialValue;
-  final String? promptText;
-  final String? labelText;
-  final String? hintText;
-  final TextInputType? keyboardType;
-  final TextCapitalization textCapitalization;
-  final bool autofocus;
-  final String? secondaryActionLabel;
-  final String? secondaryActionKey;
-  final String confirmLabel;
-
-  @override
-  State<_TextInputDialog> createState() => _TextInputDialogState();
-}
-
-class _TextInputDialogState extends State<_TextInputDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initialValue,
-  );
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.title),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          if (widget.promptText != null) ...<Widget>[
-            Text(widget.promptText!),
-            const SizedBox(height: 10),
-          ],
-          TextField(
-            controller: _controller,
-            autofocus: widget.autofocus,
-            keyboardType: widget.keyboardType,
-            textCapitalization: widget.textCapitalization,
-            decoration: InputDecoration(
-              labelText: widget.labelText,
-              hintText: widget.hintText,
-            ),
-          ),
-        ],
-      ),
-      actions: <Widget>[
-        if (widget.secondaryActionLabel != null &&
-            widget.secondaryActionKey != null)
-          TextButton(
-            onPressed: () => Navigator.of(context).pop((
-              action: widget.secondaryActionKey!,
-              text: _controller.text,
-            )),
-            child: Text(widget.secondaryActionLabel!),
-          ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(null),
-          child: const Text('Batal'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop((
-            action: 'save',
-            text: _controller.text,
-          )),
-          child: Text(widget.confirmLabel),
-        ),
-      ],
-    );
   }
 }
 

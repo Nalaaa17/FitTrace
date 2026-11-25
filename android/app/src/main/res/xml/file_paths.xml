@@ -3,8 +3,4 @@
     <cache-path
         name="story_cache"
         path="story_cache/" />
-    <cache-path
-        name="fittrace_cache"
-        path="." />
 </paths>
-

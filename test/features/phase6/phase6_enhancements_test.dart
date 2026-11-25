@@ -168,6 +168,7 @@ void main() {
         lastBackupAt: null,
         backupReminderEnabled: true,
         lastBackupReminderAt: null,
+        weeklyTargetKm: 30.0,
       );
 
       final cfg = BackgroundSyncScheduleConfig.fromPreferences(defaultPrefs);

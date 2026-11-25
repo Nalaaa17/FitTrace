@@ -44,12 +44,12 @@ class MethodChannelBatteryChargingReader implements BatteryChargingReader {
   Future<bool> isCharging() async {
     try {
       final value = await _channel.invokeMethod<bool>('isCharging');
-      return value ?? true;
+      return value ?? false;
     } on MissingPluginException {
-      return true;
+      return false;
     } on PlatformException catch (error) {
       AppLogger.warn('DeviceState', 'Battery charging query failed', error);
-      return true;
+      return false;
     }
   }
 }
@@ -78,10 +78,10 @@ class NetworkPolicyChecker {
     try {
       results = await connectivityReader.checkConnectivity();
     } on MissingPluginException {
-      results = const <ConnectivityResult>[ConnectivityResult.wifi];
+      results = const <ConnectivityResult>[ConnectivityResult.none];
     } on Object catch (error) {
       AppLogger.warn('NetworkPolicy', 'Connectivity check failed', error);
-      results = const <ConnectivityResult>[ConnectivityResult.wifi];
+      results = const <ConnectivityResult>[ConnectivityResult.none];
     }
 
     final hasConnection = results.any((r) => r != ConnectivityResult.none);

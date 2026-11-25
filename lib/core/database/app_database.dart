@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'converters.dart';
 import 'tables.dart';
-import '../../features/shoes/domain/shoe.dart';
+import 'models/shoe_models.dart';
 
 part 'app_database.g.dart';
 
@@ -134,6 +134,7 @@ class ActivityFeedFilter {
 
 @DriftDatabase(
   tables: <Type>[
+    Shoes,
     Activities,
     TrackPoints,
     LapSplits,
@@ -149,7 +150,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -182,6 +183,9 @@ class AppDatabase extends _$AppDatabase {
               column: 'last_backup_reminder_at',
               definition: 'INTEGER',
             );
+          }
+          if (from < 3) {
+            await _ensureFeatureTables();
           }
           await _ensureCustomIndexes();
           await _seedDefaultPreferences();
@@ -217,7 +221,6 @@ class AppDatabase extends _$AppDatabase {
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_best_efforts_act_dist '
       'ON activity_best_efforts (activity_id, distance_key);',
     );
-    await _ensureFeatureTables();
   }
 
   Future<void> _ensureFeatureTables() async {
@@ -1123,16 +1126,18 @@ class AppDatabase extends _$AppDatabase {
   }) async {
     await _ensureFeatureTables();
     final now = DateTime.now().toUtc().millisecondsSinceEpoch;
-    if (isDefault) {
-      await customStatement('UPDATE shoes SET is_default = 0;');
-    }
-    await customStatement(
-      'INSERT INTO shoes (name, brand, max_distance_km, is_default, is_retired, created_at, updated_at) '
-      'VALUES (?, ?, ?, ?, 0, ?, ?);',
-      <Object>[name.trim(), brand.trim(), maxDistanceKm, isDefault ? 1 : 0, now, now],
-    );
-    final row = await customSelect('SELECT last_insert_rowid() AS id;').getSingle();
-    return row.read<int>('id');
+    return transaction(() async {
+      if (isDefault) {
+        await customStatement('UPDATE shoes SET is_default = 0;');
+      }
+      await customStatement(
+        'INSERT INTO shoes (name, brand, max_distance_km, is_default, is_retired, created_at, updated_at) '
+        'VALUES (?, ?, ?, ?, 0, ?, ?);',
+        <Object>[name.trim(), brand.trim(), maxDistanceKm, isDefault ? 1 : 0, now, now],
+      );
+      final row = await customSelect('SELECT last_insert_rowid() AS id;').getSingle();
+      return row.read<int>('id');
+    });
   }
 
   Future<void> updateShoe({
@@ -1145,26 +1150,32 @@ class AppDatabase extends _$AppDatabase {
   }) async {
     await _ensureFeatureTables();
     final now = DateTime.now().toUtc().millisecondsSinceEpoch;
-    if (isDefault) {
-      await customStatement('UPDATE shoes SET is_default = 0 WHERE id != ?;', <Object>[id]);
-    }
-    await customStatement(
-      'UPDATE shoes SET name = ?, brand = ?, max_distance_km = ?, is_default = ?, is_retired = ?, updated_at = ? '
-      'WHERE id = ?;',
-      <Object>[name.trim(), brand.trim(), maxDistanceKm, isDefault ? 1 : 0, isRetired ? 1 : 0, now, id],
-    );
+    await transaction(() async {
+      if (isDefault) {
+        await customStatement('UPDATE shoes SET is_default = 0 WHERE id != ?;', <Object>[id]);
+      }
+      await customStatement(
+        'UPDATE shoes SET name = ?, brand = ?, max_distance_km = ?, is_default = ?, is_retired = ?, updated_at = ? '
+        'WHERE id = ?;',
+        <Object>[name.trim(), brand.trim(), maxDistanceKm, isDefault ? 1 : 0, isRetired ? 1 : 0, now, id],
+      );
+    });
   }
 
   Future<void> deleteShoe(int id) async {
     await _ensureFeatureTables();
-    await customStatement('UPDATE activities SET shoe_id = NULL WHERE shoe_id = ?;', <Object>[id]);
-    await customStatement('DELETE FROM shoes WHERE id = ?;', <Object>[id]);
+    await transaction(() async {
+      await customStatement('UPDATE activities SET shoe_id = NULL WHERE shoe_id = ?;', <Object>[id]);
+      await customStatement('DELETE FROM shoes WHERE id = ?;', <Object>[id]);
+    });
   }
 
   Future<void> setDefaultShoe(int id) async {
     await _ensureFeatureTables();
-    await customStatement('UPDATE shoes SET is_default = 0;');
-    await customStatement('UPDATE shoes SET is_default = 1, is_retired = 0 WHERE id = ?;', <Object>[id]);
+    await transaction(() async {
+      await customStatement('UPDATE shoes SET is_default = 0;');
+      await customStatement('UPDATE shoes SET is_default = 1, is_retired = 0 WHERE id = ?;', <Object>[id]);
+    });
   }
 
   Future<void> assignShoeToActivity({

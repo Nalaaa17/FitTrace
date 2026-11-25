@@ -94,8 +94,8 @@ void main() {
       expect(prefs.hrZoneThresholds, const <int>[60, 70, 80, 90]);
     });
 
-    test('validates schema v2 custom unique indexes and foreign keys', () async {
-      expect(db.schemaVersion, 2);
+    test('validates schema v3 custom unique indexes and foreign keys', () async {
+      expect(db.schemaVersion, 3);
 
       final fkRow = await db.customSelect('PRAGMA foreign_keys;').getSingle();
       expect(fkRow.data.values.first, 1);

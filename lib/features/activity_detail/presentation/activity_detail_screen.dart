@@ -10,6 +10,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/unit_formatter.dart';
 import '../../../core/widgets/text_input_dialog.dart';
 import '../../backup/application/backup_providers.dart';
+import '../../backup/data/route_export_service.dart';
 import '../../feed/application/feed_providers.dart';
 import '../../import/application/import_providers.dart';
 import '../../intervals/application/interval_detector.dart';
@@ -75,6 +76,28 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                 ? null
                 : () => _openStoryEditor(context, detailAsync.value!),
           ),
+          if (detailAsync.value != null &&
+              detailAsync.value!.activity.hasGpsTrack)
+            PopupMenuButton<RouteExportFormat>(
+              tooltip: 'Ekspor Rute',
+              icon: const Icon(Icons.ios_share_rounded),
+              onSelected: (format) =>
+                  _exportRouteFile(context, detailAsync.value!, format),
+              itemBuilder: (_) => const <PopupMenuEntry<RouteExportFormat>>[
+                PopupMenuItem(
+                  value: RouteExportFormat.gpx,
+                  child: Text('Ekspor Rute .GPX'),
+                ),
+                PopupMenuItem(
+                  value: RouteExportFormat.tcx,
+                  child: Text('Ekspor Rute .TCX'),
+                ),
+                PopupMenuItem(
+                  value: RouteExportFormat.geoJson,
+                  child: Text('Ekspor Rute .GeoJSON'),
+                ),
+              ],
+            ),
           IconButton(
             tooltip: 'Hapus Aktivitas',
             icon: const Icon(Icons.delete_outline),
@@ -387,11 +410,20 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
   ) {
     final shoe = shoeWithUsage?.shoe;
     final isWorn = shoeWithUsage?.isAlertWorn ?? false;
+    final unitSystem = ref.watch(userPreferencesProvider).value?.unitSystem;
+    final unitLabel = UnitFormatter.distanceUnitLabel(unitSystem);
+    final statusColor = isWorn ? colors.accentDanger : colors.accentSuccess;
 
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _selectShoeForActivity(context, activityId, shoe?.id),
+        onTap: () => _selectShoeForActivity(
+          context,
+          activityId,
+          shoe?.id,
+          colors,
+          unitSystem,
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
@@ -399,14 +431,12 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: isWorn
-                      ? const Color(0xFFFF5252).withValues(alpha: 0.18)
-                      : const Color(0xFF00E676).withValues(alpha: 0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.directions_run_rounded,
-                  color: isWorn ? const Color(0xFFFF5252) : const Color(0xFF00E676),
+                  color: statusColor,
                   size: 22,
                 ),
               ),
@@ -417,7 +447,9 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                   children: [
                     Text(
                       shoe != null ? shoe.name : 'Pilih Sepatu Lari',
-                      style: const TextStyle(
+                      style: TextStyle(
+                        fontFamily: AppTypography.bodyFontFamily,
+                        color: colors.textPrimary,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -425,12 +457,11 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                     const SizedBox(height: 2),
                     Text(
                       shoeWithUsage != null
-                          ? '${shoeWithUsage.currentDistanceKm.toStringAsFixed(1)} / ${shoe!.maxDistanceKm.toStringAsFixed(0)} km (${shoeWithUsage.wearPercent.toStringAsFixed(0)}% aus)${isWorn ? " • ⚠️ Aus!" : ""}'
+                          ? '${UnitFormatter.convertDistanceMeters(shoeWithUsage.totalDistanceMeters, unitSystem).toStringAsFixed(1)} / ${UnitFormatter.convertDistanceMeters(shoe!.maxDistanceKm * 1000.0, unitSystem).toStringAsFixed(0)} $unitLabel (${shoeWithUsage.wearPercent.toStringAsFixed(0)}% aus)${isWorn ? " • Aus" : ""}'
                           : 'Catat jarak tempuh & pantau keausan sol sepatu ini',
                       style: TextStyle(
-                        color: isWorn
-                            ? const Color(0xFFFF5252)
-                            : colors.textSecondary,
+                        fontFamily: AppTypography.bodyFontFamily,
+                        color: isWorn ? colors.accentDanger : colors.textSecondary,
                         fontSize: 12,
                         fontWeight: isWorn ? FontWeight.bold : FontWeight.normal,
                       ),
@@ -444,24 +475,24 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                 decoration: BoxDecoration(
                   color: colors.bgElevated,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(color: colors.hairlineBorder),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       shoe == null ? 'Pilih' : 'Ganti',
-                      style: const TextStyle(
-                        color: Color(0xFF00E676),
+                      style: TextStyle(
+                        color: colors.accentSuccess,
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
                     ),
                     const SizedBox(width: 2),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right,
                       size: 16,
-                      color: Color(0xFF00E676),
+                      color: colors.accentSuccess,
                     ),
                   ],
                 ),
@@ -477,13 +508,16 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     BuildContext context,
     int activityId,
     int? currentShoeId,
+    FitTraceColors colors,
+    String? unitSystem,
   ) async {
     final shoes = await ref.read(shoesNotifierProvider.future);
     if (!context.mounted) return;
+    final unitLabel = UnitFormatter.distanceUnitLabel(unitSystem);
 
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF1E222B),
+      backgroundColor: colors.bgElevated,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -495,22 +529,26 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Text(
                     'Pilih Sepatu Lari',
                     style: TextStyle(
-                      color: Colors.white,
+                      fontFamily: AppTypography.displayFontFamily,
+                      color: colors.textPrimary,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
                   ),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.block, color: Colors.grey),
-                  title: const Text('Tanpa Sepatu', style: TextStyle(color: Colors.white)),
+                  leading: Icon(Icons.block, color: colors.textSecondary),
+                  title: Text(
+                    'Tanpa Sepatu',
+                    style: TextStyle(color: colors.textPrimary),
+                  ),
                   trailing: currentShoeId == null
-                      ? const Icon(Icons.check, color: Color(0xFF00E676))
+                      ? Icon(Icons.check, color: colors.accentSuccess)
                       : null,
                   onTap: () async {
                     Navigator.pop(ctx);
@@ -525,44 +563,52 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                     }
                   },
                 ),
-                const Divider(color: Colors.white12),
+                Divider(color: colors.hairlineBorder),
                 if (shoes.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(20),
                     child: Text(
                       'Belum ada sepatu yang ditambahkan. Tambahkan di Pengaturan > Tracking Sepatu.',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+                      style: TextStyle(color: colors.textSecondary, fontSize: 13),
                     ),
                   )
                 else
                   ...shoes.where((s) => !s.shoe.isRetired).map((swu) {
                     final shoe = swu.shoe;
                     final isSelected = currentShoeId == shoe.id;
+                    final curr = UnitFormatter.convertDistanceMeters(
+                      swu.totalDistanceMeters,
+                      unitSystem,
+                    ).toStringAsFixed(1);
+                    final max = UnitFormatter.convertDistanceMeters(
+                      shoe.maxDistanceKm * 1000.0,
+                      unitSystem,
+                    ).toStringAsFixed(0);
                     return ListTile(
                       leading: Icon(
                         Icons.directions_run_rounded,
                         color: swu.isAlertWorn
-                            ? const Color(0xFFFF5252)
-                            : const Color(0xFF00E676),
+                            ? colors.accentDanger
+                            : colors.accentSuccess,
                       ),
                       title: Text(
                         shoe.name,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: colors.textPrimary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       subtitle: Text(
-                        '${shoe.brand.isNotEmpty ? "${shoe.brand} • " : ""}${swu.currentDistanceKm.toStringAsFixed(1)} / ${shoe.maxDistanceKm.toStringAsFixed(0)} km (${swu.wearPercent.toStringAsFixed(0)}%)',
+                        '${shoe.brand.isNotEmpty ? "${shoe.brand} • " : ""}$curr / $max $unitLabel (${swu.wearPercent.toStringAsFixed(0)}%)',
                         style: TextStyle(
                           color: swu.isAlertWorn
-                              ? const Color(0xFFFF5252)
-                              : Colors.white.withValues(alpha: 0.6),
+                              ? colors.accentDanger
+                              : colors.textSecondary,
                           fontSize: 12,
                         ),
                       ),
                       trailing: isSelected
-                          ? const Icon(Icons.check, color: Color(0xFF00E676))
+                          ? Icon(Icons.check, color: colors.accentSuccess)
                           : null,
                       onTap: () async {
                         Navigator.pop(ctx);
@@ -584,6 +630,39 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
         );
       },
     );
+  }
+
+  Future<void> _exportRouteFile(
+    BuildContext context,
+    ActivityDetailBundle bundle,
+    RouteExportFormat format,
+  ) async {
+    try {
+      final saved = await ref.read(routeExportServiceProvider).exportAndSave(
+            db: ref.read(appDatabaseProvider),
+            bundle: bundle,
+            format: format,
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              saved == null
+                  ? 'Ekspor rute dibatalkan.'
+                  : 'Berhasil mengekspor rute ${format.name.toUpperCase()}.',
+            ),
+          ),
+        );
+    } on Object catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text('Gagal mengekspor rute: $error')),
+        );
+    }
   }
 
   Future<void> _exportFitFile(BuildContext context, int activityId) async {

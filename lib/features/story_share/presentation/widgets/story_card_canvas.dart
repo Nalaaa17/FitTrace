@@ -1541,7 +1541,7 @@ class _CuteJournalStatsStickerOverlay extends StatelessWidget {
             const Text(
               'fittrace scrapbook • happy miles ✿',
               style: TextStyle(
-                color: Color(0xFFA8A29E),
+                color: Color(0xFF57534E),
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.0,
@@ -1868,7 +1868,8 @@ class _PastelRoutePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _PastelRoutePainter oldDelegate) =>
-      oldDelegate.bundle.activity.id != bundle.activity.id;
+      oldDelegate.bundle.activity.id != bundle.activity.id ||
+      oldDelegate.bundle.mapSegments != bundle.mapSegments;
 }
 
 class _PastelSparkleDecorations extends StatelessWidget {
@@ -2009,7 +2010,8 @@ class _CyberNeonRoutePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _CyberNeonRoutePainter oldDelegate) =>
-      oldDelegate.bundle.activity.id != bundle.activity.id;
+      oldDelegate.bundle.activity.id != bundle.activity.id ||
+      oldDelegate.bundle.mapSegments != bundle.mapSegments;
 }
 
 class _ReceiptRoutePainter extends CustomPainter {
@@ -2069,7 +2071,8 @@ class _ReceiptRoutePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ReceiptRoutePainter oldDelegate) =>
-      oldDelegate.bundle.activity.id != bundle.activity.id;
+      oldDelegate.bundle.activity.id != bundle.activity.id ||
+      oldDelegate.bundle.mapSegments != bundle.mapSegments;
 }
 
 class _JournalPolaroidRoutePainter extends CustomPainter {
@@ -2122,7 +2125,8 @@ class _JournalPolaroidRoutePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _JournalPolaroidRoutePainter oldDelegate) =>
-      oldDelegate.bundle.activity.id != bundle.activity.id;
+      oldDelegate.bundle.activity.id != bundle.activity.id ||
+      oldDelegate.bundle.mapSegments != bundle.mapSegments;
 }
 
 class _PolaroidRouteCard extends StatelessWidget {

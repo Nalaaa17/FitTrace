@@ -2,6 +2,19 @@ import 'package:drift/drift.dart';
 
 import 'converters.dart';
 
+/// Running shoes table for tracking mileage and wear (`PRD Shoe Tracking`).
+@DataClassName('ShoeRecord')
+class Shoes extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get brand => text().withDefault(const Constant(''))();
+  RealColumn get maxDistanceKm => real().withDefault(const Constant(600.0))();
+  BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
+  BoolColumn get isRetired => boolean().withDefault(const Constant(false))();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
 /// Running activities table (PRD §4.1, ADR-001, ADR-002).
 ///
 /// Uniqueness of non-null `garminActivityId` is enforced via partial unique index
@@ -45,6 +58,12 @@ class Activities extends Table {
   /// Marks titles renamed locally by the user so Garmin re-syncs keep them (M3-08).
   BoolColumn get hasCustomTitle =>
       boolean().withDefault(const Constant(false))();
+
+  IntColumn get shoeId => integer().nullable().references(
+        Shoes,
+        #id,
+        onDelete: KeyAction.setNull,
+      )();
 
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -143,6 +162,8 @@ class UserPreferencesTable extends Table {
   BoolColumn get backupReminderEnabled =>
       boolean().withDefault(const Constant(true))();
   DateTimeColumn get lastBackupReminderAt => dateTime().nullable()();
+  RealColumn get weeklyTargetKm =>
+      real().withDefault(const Constant(30.0))();
 
   @override
   Set<Column<Object>> get primaryKey => <Column<Object>>{id};

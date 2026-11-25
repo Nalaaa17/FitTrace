@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/database/database_provider.dart';
+import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/onboarding/presentation/splash_screen.dart';
+import 'l10n/app_localizations.dart';
 
 class FitTraceApp extends ConsumerWidget {
   const FitTraceApp({
@@ -25,8 +27,10 @@ class FitTraceApp extends ConsumerWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      onGenerateRoute: AppRouter.onGenerateRoute,
       home: home ?? const SplashScreen(),
     );
   }
 }
-

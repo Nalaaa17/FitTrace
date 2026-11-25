@@ -1,0 +1,13 @@
+{
+  "@@locale": "id",
+  "appTitle": "FitTrace",
+  "feedTitle": "Aktivitas",
+  "statsTitle": "Statistik",
+  "settingsTitle": "Pengaturan",
+  "shoesTitle": "Tracking Sepatu Lari",
+  "weeklyTargetTitle": "TARGET MINGGU INI",
+  "retryButton": "Coba Lagi",
+  "cancelButton": "Batal",
+  "saveButton": "Simpan",
+  "deleteButton": "Hapus"
+}

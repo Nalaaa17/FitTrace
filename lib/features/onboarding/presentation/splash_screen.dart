@@ -23,6 +23,7 @@ class SplashScreen extends ConsumerStatefulWidget {
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
   Timer? _timer;
+  String? _startupError;
 
   @override
   void initState() {
@@ -37,15 +38,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   Future<void> _navigateNext() async {
-    final prefs = await ref.read(appDatabaseProvider).getPreferences();
-    if (!mounted) return;
-    final destination = prefs.onboardingCompleted
-        ? const MainShellScreen()
-        : const OnboardingScreen();
+    try {
+      final prefs = await ref.read(appDatabaseProvider).getPreferences();
+      if (!mounted) return;
+      final destination = prefs.onboardingCompleted
+          ? const MainShellScreen()
+          : const OnboardingScreen();
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => destination),
-    );
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => destination),
+      );
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _startupError = 'Gagal memuat basis data lokal: $error';
+      });
+    }
   }
 
   @override
@@ -54,35 +62,55 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     return Scaffold(
       body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.asset(
-                'assets/images/logo.png',
-                width: 96,
-                height: 96,
-                fit: BoxFit.cover,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 96,
+                  height: 96,
+                  fit: BoxFit.cover,
+                  semanticLabel: 'Logo FitTrace',
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'FITTRACE',
-              style: AppTypography.heroDistance(colors.textPrimary).copyWith(
-                fontSize: 28,
-                letterSpacing: 3.2,
+              const SizedBox(height: 16),
+              Text(
+                'FITTRACE',
+                style: AppTypography.heroDistance(colors.textPrimary).copyWith(
+                  fontSize: 28,
+                  letterSpacing: 3.2,
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'LOCAL-FIRST RUNNING ANALYTICS',
-              style: AppTypography.metricLabel(colors.textSecondary),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                'LOCAL-FIRST RUNNING ANALYTICS',
+                style: AppTypography.metricLabel(colors.textSecondary),
+              ),
+              if (_startupError != null) ...<Widget>[
+                const SizedBox(height: 20),
+                Text(
+                  _startupError!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.accentDanger, fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () {
+                    setState(() => _startupError = null);
+                    _navigateNext();
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Coba Lagi'),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
-

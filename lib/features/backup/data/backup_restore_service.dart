@@ -7,6 +7,7 @@ import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/config/app_info.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/error/app_failure.dart';
 import '../../../core/logging/app_logger.dart';
@@ -109,6 +110,7 @@ class BackupRestoreService {
     onProgress?.call('Membaca aktivitas & preferensi...', 0.1);
 
     final prefs = await db.getPreferences();
+    final shoeRows = await db.select(db.shoes).get();
     final activityRows = await db.select(db.activities).get();
     final splitRows = await db.select(db.lapSplits).get();
     final effortRows = await db.select(db.activityBestEfforts).get();
@@ -151,7 +153,7 @@ class BackupRestoreService {
     // Security (NFR-02): strictly omit garminLoggedIn, lastSyncAt, and all credentials.
     final backupJson = <String, dynamic>{
       'schemaVersion': currentSchemaVersion,
-      'appVersion': '1.1.0',
+      'appVersion': AppInfo.version,
       'exportedAtUtc': nowUtc.toIso8601String(),
       'preferences': <String, dynamic>{
         'birthDate': prefs.birthDate?.toUtc().toIso8601String(),
@@ -167,7 +169,22 @@ class BackupRestoreService {
         'backgroundSyncRequireCharging': prefs.backgroundSyncRequireCharging,
         'backgroundSyncIntervalMinutes': prefs.backgroundSyncIntervalMinutes,
         'backupReminderEnabled': prefs.backupReminderEnabled,
+        'weeklyTargetKm': prefs.weeklyTargetKm,
       },
+      'shoes': shoeRows
+          .map(
+            (s) => <String, dynamic>{
+              'backupId': s.id,
+              'name': s.name,
+              'brand': s.brand,
+              'maxDistanceKm': s.maxDistanceKm,
+              'isDefault': s.isDefault,
+              'isRetired': s.isRetired,
+              'createdAt': s.createdAt,
+              'updatedAt': s.updatedAt,
+            },
+          )
+          .toList(growable: false),
       'storyPresets': presetRows
           .map(
             (pRow) => <String, dynamic>{
@@ -188,6 +205,7 @@ class BackupRestoreService {
             : null;
         return <String, dynamic>{
           'backupId': a.id,
+          'shoeId': a.shoeId,
           'garminActivityId': a.garminActivityId,
           'title': a.title,
           'hasCustomTitle': a.hasCustomTitle,
@@ -340,6 +358,43 @@ class BackupRestoreService {
     var restoredTrackPoints = 0;
 
     await db.transaction(() async {
+      final rawShoes =
+          decodedJson['shoes'] as List<dynamic>? ?? const <dynamic>[];
+      final shoeIdMap = <int, int>{};
+      if (rawShoes.isNotEmpty) {
+        final existingShoes = await db.select(db.shoes).get();
+        final existingByName = <String, int>{
+          for (final s in existingShoes) s.name.trim().toLowerCase(): s.id,
+        };
+        for (final rawShoe in rawShoes.whereType<Map<String, dynamic>>()) {
+          final oldId = rawShoe['backupId'] as int?;
+          final name = (rawShoe['name'] as String?)?.trim() ?? '';
+          if (name.isEmpty) continue;
+          final existingId = existingByName[name.toLowerCase()];
+          if (existingId != null) {
+            if (oldId != null) shoeIdMap[oldId] = existingId;
+            continue;
+          }
+          final newShoeId = await db.into(db.shoes).insert(
+            ShoesCompanion.insert(
+              name: name,
+              brand: Value((rawShoe['brand'] as String?) ?? ''),
+              maxDistanceKm: Value(
+                ((rawShoe['maxDistanceKm'] as num?) ?? 600.0).toDouble(),
+              ),
+              isDefault: Value((rawShoe['isDefault'] as bool?) ?? false),
+              isRetired: Value((rawShoe['isRetired'] as bool?) ?? false),
+              createdAt: (rawShoe['createdAt'] as int?) ??
+                  DateTime.now().toUtc().millisecondsSinceEpoch,
+              updatedAt: (rawShoe['updatedAt'] as int?) ??
+                  DateTime.now().toUtc().millisecondsSinceEpoch,
+            ),
+          );
+          existingByName[name.toLowerCase()] = newShoeId;
+          if (oldId != null) shoeIdMap[oldId] = newShoeId;
+        }
+      }
+
       for (final rawAct in rawActivities) {
         if (rawAct is! Map<String, dynamic>) continue;
         final garminId = rawAct['garminActivityId'] as int?;
@@ -359,8 +414,11 @@ class BackupRestoreService {
         final localFitPath =
             archiveName != null ? restoredArchivePaths[archiveName] : null;
 
+        final oldShoeId = rawAct['shoeId'] as int?;
+        final mappedShoeId = oldShoeId != null ? shoeIdMap[oldShoeId] : null;
         final newActivityId = await db.into(db.activities).insert(
           ActivitiesCompanion.insert(
+            shoeId: Value(mappedShoeId),
             garminActivityId: Value(garminId),
             title: (rawAct['title'] as String?) ?? 'Restored Run',
             sportType: (rawAct['sportType'] as int?) ?? 1,
@@ -532,6 +590,9 @@ class BackupRestoreService {
             backupReminderEnabled: rawPrefs['backupReminderEnabled'] is bool
                 ? Value(rawPrefs['backupReminderEnabled'] as bool)
                 : const Value.absent(),
+            weeklyTargetKm: rawPrefs['weeklyTargetKm'] is num
+                ? Value((rawPrefs['weeklyTargetKm'] as num).toDouble())
+                : const Value.absent(),
           ),
         );
       }
@@ -694,6 +755,7 @@ class BackupRestoreService {
       await db.delete(db.trackPoints).go();
       await db.delete(db.lapSplits).go();
       await db.delete(db.activities).go();
+      await db.delete(db.shoes).go();
       await db.delete(db.storyPresets).go();
       await db.delete(db.userPreferencesTable).go();
       await db.into(db.userPreferencesTable).insert(

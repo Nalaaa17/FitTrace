@@ -1,14 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/database_provider.dart';
+import '../data/shoe_repository.dart';
 import '../domain/shoe.dart';
 
 /// Manages the list of shoes with their real-time usage and mileage.
 class ShoesNotifier extends AsyncNotifier<List<ShoeWithUsage>> {
   @override
   Future<List<ShoeWithUsage>> build() async {
-    final db = ref.watch(appDatabaseProvider);
-    return db.getShoesWithUsage();
+    // Re-fetch automatically when activities are imported, synced, or deleted.
+    ref.watch(activitiesMutationTickProvider);
+    final repo = ref.watch(shoeRepositoryProvider);
+    return repo.getShoesWithUsage();
   }
 
   Future<void> addShoe({
@@ -17,8 +20,8 @@ class ShoesNotifier extends AsyncNotifier<List<ShoeWithUsage>> {
     double maxDistanceKm = 600.0,
     bool isDefault = false,
   }) async {
-    final db = ref.read(appDatabaseProvider);
-    await db.insertShoe(
+    final repo = ref.read(shoeRepositoryProvider);
+    await repo.insertShoe(
       name: name,
       brand: brand,
       maxDistanceKm: maxDistanceKm,
@@ -35,8 +38,8 @@ class ShoesNotifier extends AsyncNotifier<List<ShoeWithUsage>> {
     required bool isDefault,
     required bool isRetired,
   }) async {
-    final db = ref.read(appDatabaseProvider);
-    await db.updateShoe(
+    final repo = ref.read(shoeRepositoryProvider);
+    await repo.updateShoe(
       id: id,
       name: name,
       brand: brand,
@@ -48,14 +51,14 @@ class ShoesNotifier extends AsyncNotifier<List<ShoeWithUsage>> {
   }
 
   Future<void> deleteShoe(int id) async {
-    final db = ref.read(appDatabaseProvider);
-    await db.deleteShoe(id);
+    final repo = ref.read(shoeRepositoryProvider);
+    await repo.deleteShoe(id);
     ref.invalidateSelf();
   }
 
   Future<void> setDefaultShoe(int id) async {
-    final db = ref.read(appDatabaseProvider);
-    await db.setDefaultShoe(id);
+    final repo = ref.read(shoeRepositoryProvider);
+    await repo.setDefaultShoe(id);
     ref.invalidateSelf();
   }
 }
@@ -68,17 +71,16 @@ final shoesNotifierProvider =
 /// Provides the shoe linked to a specific activity.
 final activityShoeProvider =
     FutureProvider.family<ShoeWithUsage?, int>((ref, activityId) async {
-  final db = ref.watch(appDatabaseProvider);
-  return db.getShoeForActivity(activityId);
+  final repo = ref.watch(shoeRepositoryProvider);
+  return repo.getShoeForActivity(activityId);
 });
 
 /// Controller to assign a shoe to an activity.
 final assignShoeControllerProvider = Provider((ref) {
   return (int activityId, int? shoeId) async {
-    final db = ref.read(appDatabaseProvider);
-    await db.assignShoeToActivity(activityId: activityId, shoeId: shoeId);
+    final repo = ref.read(shoeRepositoryProvider);
+    await repo.assignShoeToActivity(activityId: activityId, shoeId: shoeId);
     ref.invalidate(activityShoeProvider(activityId));
     ref.invalidate(shoesNotifierProvider);
   };
 });
-

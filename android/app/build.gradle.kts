@@ -37,12 +37,19 @@ android {
 
     signingConfigs {
         create("release") {
-            val keyAliasProp = keystoreProperties.getProperty("keyAlias")
-            val keyPasswordProp = keystoreProperties.getProperty("keyPassword")
-            val storeFileProp = keystoreProperties.getProperty("storeFile")
-            val storePasswordProp = keystoreProperties.getProperty("storePassword")
+            val isReleaseTask = gradle.startParameter.taskNames.any {
+                it.contains("Release", ignoreCase = true)
+            }
+            val keyAliasProp = keystoreProperties.getProperty("keyAlias")?.trim()
+            val keyPasswordProp = keystoreProperties.getProperty("keyPassword")?.trim()
+            val storeFileProp = keystoreProperties.getProperty("storeFile")?.trim()
+            val storePasswordProp = keystoreProperties.getProperty("storePassword")?.trim()
 
-            if (!storeFileProp.isNullOrBlank()) {
+            if (!storeFileProp.isNullOrBlank() &&
+                !storePasswordProp.isNullOrBlank() &&
+                !keyAliasProp.isNullOrBlank() &&
+                !keyPasswordProp.isNullOrBlank()
+            ) {
                 val resolvedStore = file(storeFileProp).takeIf { it.exists() }
                     ?: rootProject.file(storeFileProp).takeIf { it.exists() }
                 if (resolvedStore != null) {
@@ -50,11 +57,15 @@ android {
                     storePassword = storePasswordProp
                     keyAlias = keyAliasProp
                     keyPassword = keyPasswordProp
-                } else {
-                    initWith(getByName("debug"))
+                } else if (isReleaseTask) {
+                    throw org.gradle.api.GradleException(
+                        "Release keystore file not found at '$storeFileProp'. Configure android/key.properties before building release."
+                    )
                 }
-            } else {
-                initWith(getByName("debug"))
+            } else if (isReleaseTask) {
+                throw org.gradle.api.GradleException(
+                    "Missing release signing credentials in android/key.properties (storeFile, storePassword, keyAlias, keyPassword)."
+                )
             }
         }
     }
@@ -62,8 +73,12 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

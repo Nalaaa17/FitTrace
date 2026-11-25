@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/database/database_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/unit_formatter.dart';
 import '../../application/weekly_target_providers.dart';
 import '../../domain/weekly_target.dart';
 
@@ -12,12 +14,56 @@ class WeeklyTargetCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final targetAsync = ref.watch(weeklyTargetProvider);
+    final prefsAsync = ref.watch(userPreferencesProvider);
+    final unitSystem = prefsAsync.value?.unitSystem;
     final colors = context.fitColors;
 
     return targetAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (progress) => _buildCard(context, ref, progress, colors),
+      loading: () => Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colors.textSecondary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Memuat target mingguan...',
+                style: TextStyle(color: colors.textSecondary, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ),
+      error: (_, _) => Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline, size: 18, color: colors.accentDanger),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Gagal memuat target mingguan',
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                ),
+              ),
+              TextButton(
+                onPressed: () => ref.invalidate(weeklyTargetProvider),
+                child: const Text('Coba Lagi'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (progress) =>
+          _buildCard(context, ref, progress, colors, unitSystem),
     );
   }
 
@@ -26,9 +72,23 @@ class WeeklyTargetCard extends ConsumerWidget {
     WidgetRef ref,
     WeeklyTargetProgress progress,
     FitTraceColors colors,
+    String? unitSystem,
   ) {
     final isAchieved = progress.isAchieved;
-    final accentColor = isAchieved ? const Color(0xFF00E676) : const Color(0xFF00E5FF);
+    final accentColor = isAchieved ? colors.accentSuccess : colors.accentInfo;
+    final unitLabel = UnitFormatter.distanceUnitLabel(unitSystem);
+    final currentDisplay = UnitFormatter.convertDistanceMeters(
+      progress.currentKm * 1000.0,
+      unitSystem,
+    );
+    final targetDisplay = UnitFormatter.convertDistanceMeters(
+      progress.targetKm * 1000.0,
+      unitSystem,
+    );
+    final remainingDisplay = UnitFormatter.convertDistanceMeters(
+      progress.remainingKm * 1000.0,
+      unitSystem,
+    );
 
     return Card(
       child: Padding(
@@ -58,11 +118,17 @@ class WeeklyTargetCard extends ConsumerWidget {
                 ),
                 InkWell(
                   borderRadius: BorderRadius.circular(8),
-                  onTap: () =>
-                      _showEditTargetDialog(context, ref, progress.targetKm),
+                  onTap: () => _showEditTargetDialog(
+                    context,
+                    ref,
+                    progress.targetKm,
+                    colors,
+                  ),
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
                     child: Row(
                       children: [
                         Text(
@@ -76,7 +142,7 @@ class WeeklyTargetCard extends ConsumerWidget {
                         const SizedBox(width: 4),
                         Icon(
                           Icons.edit_outlined,
-                          size: 13,
+                          size: 14,
                           color: colors.textSecondary,
                         ),
                       ],
@@ -86,7 +152,7 @@ class WeeklyTargetCard extends ConsumerWidget {
               ],
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
 
             // Main Numbers Row
             Row(
@@ -99,22 +165,25 @@ class WeeklyTargetCard extends ConsumerWidget {
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(
-                      progress.currentKm.toStringAsFixed(1),
+                      currentDisplay.toStringAsFixed(1),
                       style: TextStyle(
                         fontFamily: AppTypography.displayFontFamily,
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
                         color: colors.textPrimary,
                         letterSpacing: -0.5,
+                        fontFeatures: AppTypography.tabularFigures,
                       ),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '/ ${progress.targetKm.toStringAsFixed(0)} km',
+                      '/ ${targetDisplay.toStringAsFixed(0)} $unitLabel',
                       style: TextStyle(
+                        fontFamily: AppTypography.bodyFontFamily,
                         fontSize: 14,
                         color: colors.textSecondary,
                         fontWeight: FontWeight.w500,
+                        fontFeatures: AppTypography.tabularFigures,
                       ),
                     ),
                   ],
@@ -122,9 +191,11 @@ class WeeklyTargetCard extends ConsumerWidget {
                 Text(
                   '${(progress.progressPercent * 100).toStringAsFixed(0)}%',
                   style: TextStyle(
+                    fontFamily: AppTypography.displayFontFamily,
                     color: accentColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 17,
+                    fontFeatures: AppTypography.tabularFigures,
                   ),
                 ),
               ],
@@ -138,8 +209,11 @@ class WeeklyTargetCard extends ConsumerWidget {
               child: LinearProgressIndicator(
                 value: progress.progressPercent,
                 minHeight: 6,
-                backgroundColor: colors.bgElevated,
+                backgroundColor: colors.trackBg,
                 valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                semanticsLabel: 'Progres target lari minggu ini',
+                semanticsValue:
+                    '${(progress.progressPercent * 100).toStringAsFixed(0)}%',
               ),
             ),
 
@@ -152,11 +226,12 @@ class WeeklyTargetCard extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     isAchieved
-                        ? '🎉 Target mingguan tercapai!'
-                        : '🔥 Sisa ${progress.remainingKm.toStringAsFixed(1)} km lagi • ${progress.daysRemainingInWeek == 0 ? "Hari terakhir!" : "${progress.daysRemainingInWeek} hari tersisa"}',
+                        ? 'Target mingguan tercapai'
+                        : 'Sisa ${remainingDisplay.toStringAsFixed(1)} $unitLabel lagi • ${progress.daysRemainingInWeek == 0 ? "Hari terakhir" : "${progress.daysRemainingInWeek} hari tersisa"}',
                     style: TextStyle(
+                      fontFamily: AppTypography.bodyFontFamily,
                       color: isAchieved
-                          ? const Color(0xFF00E676)
+                          ? colors.accentSuccess
                           : colors.textSecondary,
                       fontSize: 12,
                       fontWeight:
@@ -165,7 +240,7 @@ class WeeklyTargetCard extends ConsumerWidget {
                   ),
                 ),
                 Text(
-                  '${progress.activityCount} lari',
+                  '${progress.activityCount} sesi',
                   style: AppTypography.metricLabel(colors.textSecondary),
                 ),
               ],
@@ -180,50 +255,56 @@ class WeeklyTargetCard extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     double currentTargetKm,
+    FitTraceColors colors,
   ) {
     final ctrl =
         TextEditingController(text: currentTargetKm.toStringAsFixed(0));
+    String? errorText;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF1E222B),
-              title: const Text(
+              backgroundColor: colors.bgElevated,
+              title: Text(
                 'Target Jarak Mingguan',
                 style: TextStyle(
-                  color: Colors.white,
+                  fontFamily: AppTypography.displayFontFamily,
+                  color: colors.textPrimary,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 17,
                 ),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Tentukan target jarak tempuh yang ingin dicapai setiap minggu:',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                    style: TextStyle(color: colors.textSecondary, fontSize: 13),
                   ),
                   const SizedBox(height: 14),
                   Wrap(
                     spacing: 8,
                     children: [15, 25, 30, 40, 50].map((km) {
-                      final isSelected = ctrl.text == km.toString();
+                      final isSelected = ctrl.text.trim() == km.toString();
                       return ChoiceChip(
                         label: Text('$km km'),
                         selected: isSelected,
-                        selectedColor: const Color(0xFF00E5FF),
-                        backgroundColor: Colors.white.withValues(alpha: 0.08),
+                        selectedColor: colors.accentInfo,
+                        backgroundColor: colors.trackBg,
                         labelStyle: TextStyle(
-                          color: isSelected ? Colors.black : Colors.white,
+                          color: isSelected
+                              ? colors.bgBase
+                              : colors.textPrimary,
                           fontWeight: FontWeight.bold,
                         ),
                         onSelected: (_) {
                           setState(() {
                             ctrl.text = km.toString();
+                            errorText = null;
                           });
                         },
                       );
@@ -232,13 +313,16 @@ class WeeklyTargetCard extends ConsumerWidget {
                   const SizedBox(height: 12),
                   TextField(
                     controller: ctrl,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'Target Kustom (KM)',
-                      labelStyle: TextStyle(color: Colors.white70),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    style: TextStyle(color: colors.textPrimary),
+                    onChanged: (_) => setState(() => errorText = null),
+                    decoration: InputDecoration(
+                      labelText: 'Target Kustom (km)',
+                      labelStyle: TextStyle(color: colors.textSecondary),
                       suffixText: 'km',
-                      suffixStyle: TextStyle(color: Colors.white54),
+                      suffixStyle: TextStyle(color: colors.textSecondary),
+                      errorText: errorText,
                     ),
                   ),
                 ],
@@ -246,33 +330,32 @@ class WeeklyTargetCard extends ConsumerWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child:
-                      const Text('Batal', style: TextStyle(color: Colors.grey)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00E5FF),
-                    foregroundColor: Colors.black,
+                  child: Text(
+                    'Batal',
+                    style: TextStyle(color: colors.textSecondary),
                   ),
+                ),
+                FilledButton(
                   onPressed: () {
                     final target = double.tryParse(ctrl.text.trim());
-                    if (target != null && target > 0) {
-                      ref
-                          .read(weeklyTargetProvider.notifier)
-                          .updateTargetKm(target);
+                    if (target == null || target <= 0) {
+                      setState(() {
+                        errorText = 'Masukkan angka jarak lebih dari 0';
+                      });
+                      return;
                     }
+                    ref
+                        .read(weeklyTargetProvider.notifier)
+                        .updateTargetKm(target);
                     Navigator.pop(ctx);
                   },
-                  child: const Text(
-                    'Simpan',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  child: const Text('Simpan'),
                 ),
               ],
             );
           },
         );
       },
-    );
+    ).then((_) => ctrl.dispose());
   }
 }

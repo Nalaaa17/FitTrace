@@ -1,0 +1,13 @@
+{
+  "@@locale": "en",
+  "appTitle": "FitTrace",
+  "feedTitle": "Activities",
+  "statsTitle": "Statistics",
+  "settingsTitle": "Settings",
+  "shoesTitle": "Running Shoe Tracker",
+  "weeklyTargetTitle": "THIS WEEK'S TARGET",
+  "retryButton": "Retry",
+  "cancelButton": "Cancel",
+  "saveButton": "Save",
+  "deleteButton": "Delete"
+}

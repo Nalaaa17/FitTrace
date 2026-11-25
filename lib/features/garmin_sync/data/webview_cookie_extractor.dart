@@ -47,9 +47,11 @@ class MethodChannelWebViewCookieExtractor implements WebViewCookieExtractor {
         for (final entry in rawMap.entries) {
           final uri = Uri.tryParse(entry.key);
           final host = uri?.host.toLowerCase() ?? '';
-          final domain = host.endsWith('garmin.com')
-              ? '.garmin.com'
-              : (host.isNotEmpty ? host : '.garmin.com');
+          final domain = host == 'sso.garmin.com'
+              ? 'sso.garmin.com'
+              : (host.endsWith('garmin.com')
+                  ? '.garmin.com'
+                  : (host.isNotEmpty ? host : '.garmin.com'));
           _parseCookieHeaderIntoMap(
             entry.value,
             cookies: cookies,
@@ -67,7 +69,7 @@ class MethodChannelWebViewCookieExtractor implements WebViewCookieExtractor {
       AppLogger.warn('WebViewCookieExtractor', 'Cookie channel failed', error);
     }
 
-    if (jsCookieFallback != null) {
+    if (cookies.isEmpty && jsCookieFallback != null) {
       try {
         final rawJsCookies = await jsCookieFallback();
         if (rawJsCookies != null && rawJsCookies.trim().isNotEmpty) {
@@ -99,6 +101,13 @@ class MethodChannelWebViewCookieExtractor implements WebViewCookieExtractor {
       }
     } on Object catch (error) {
       AppLogger.warn('WebViewCookieExtractor', 'Failed clearing WebView cookies', error);
+    }
+    try {
+      await _channel.invokeMethod<void>('clearDomStorage');
+    } on MissingPluginException {
+      // Non-Android platforms or unit tests without native channel.
+    } on Object catch (error) {
+      AppLogger.warn('WebViewCookieExtractor', 'Failed clearing WebView DOM storage', error);
     }
   }
 

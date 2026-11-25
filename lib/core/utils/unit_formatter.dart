@@ -1,5 +1,3 @@
-import '../../features/feed/application/feed_providers.dart' as feed_fmt;
-
 /// Shared Metric / Imperial formatter preserving tabular display conventions (`PRD §6.2`).
 class UnitFormatter {
   const UnitFormatter._();
@@ -28,6 +26,16 @@ class UnitFormatter {
     return upperCase ? unit.toUpperCase() : unit;
   }
 
+  static String formatPaceRaw(double paceSecPerUnit) {
+    if (paceSecPerUnit <= 0 || paceSecPerUnit.isNaN || paceSecPerUnit.isInfinite) {
+      return '--\'--"';
+    }
+    final totalSec = paceSecPerUnit.round();
+    final minutes = totalSec ~/ 60;
+    final seconds = totalSec % 60;
+    return "$minutes'${seconds.toString().padLeft(2, '0')}\"";
+  }
+
   static String formatPace(double paceSecPerKm, String? unitSystem) {
     if (paceSecPerKm <= 0 || !paceSecPerKm.isFinite) {
       return '--\'--"';
@@ -35,7 +43,7 @@ class UnitFormatter {
     final adjusted = isImperial(unitSystem)
         ? paceSecPerKm * (metersPerMile / metersPerKm)
         : paceSecPerKm;
-    return feed_fmt.formatPace(adjusted);
+    return formatPaceRaw(adjusted);
   }
 
   static String paceUnitSuffix(String? unitSystem) =>
@@ -55,5 +63,20 @@ class UnitFormatter {
     final prefix = signed && rounded >= 0 ? '+' : '';
     final unit = isImperial(unitSystem) ? 'ft' : 'm';
     return '$prefix$rounded $unit';
+  }
+
+  static String formatShortDistance(double meters, String? unitSystem) {
+    if (isImperial(unitSystem)) {
+      final miles = meters / metersPerMile;
+      if (miles >= 0.5) {
+        return '${miles.toStringAsFixed(2)} mi';
+      }
+      final yards = (meters * 1.09361).round();
+      return '$yards yd';
+    }
+    if (meters >= 1000) {
+      return '${(meters / 1000.0).toStringAsFixed(2)} km';
+    }
+    return '${meters.round()} m';
   }
 }

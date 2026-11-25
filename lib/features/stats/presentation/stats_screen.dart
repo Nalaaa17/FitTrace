@@ -262,12 +262,13 @@ class StatsScreen extends ConsumerWidget {
             unitSystem: unitSystem,
           ),
           const SizedBox(height: 16),
-          if (heatmapAsync.hasValue)
+          if (heatmapAsync.hasValue) ...[
             ConsistencyHeatmapCard(
               data: heatmapAsync.value!,
               colors: colors,
             ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
           _PersonalRecordsCard(
             prsAsync: prsAsync,
             unitSystem: unitSystem,
@@ -315,7 +316,7 @@ class _GarminSyncBanner extends ConsumerWidget {
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: isConnected ? const Color(0xFF81C784) : colors.textSecondary,
+              color: isConnected ? colors.accentSuccess : colors.textSecondary,
               shape: BoxShape.circle,
             ),
           ),
@@ -354,7 +355,7 @@ class _GarminSyncBanner extends ConsumerWidget {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.sync, size: 20),
+                  : const Icon(Icons.sync_rounded, size: 20),
               tooltip: 'Sinkronkan Sekarang',
               onPressed: isSyncing
                   ? null
@@ -392,12 +393,12 @@ class _GarminCardioCard extends StatelessWidget {
     final totalZoneSec = zones.fold<int>(0, (a, b) => a + b);
     final hasHrData = stats.avgHeartRate != null || totalZoneSec > 0;
 
-    const zoneShades = <Color>[
-      Color(0xFF64B5F6), // Z1: Blue (Recovery)
-      Color(0xFF81C784), // Z2: Green (Aerobic Base)
-      Color(0xFFFFD54F), // Z3: Amber (Tempo)
-      Color(0xFFFF8A65), // Z4: Orange (Threshold)
-      Color(0xFFE57373), // Z5: Crimson (Max)
+    final zoneShades = <Color>[
+      colors.accentInfo, // Z1: Recovery
+      colors.accentSuccess, // Z2: Aerobic Base
+      colors.accentWarning, // Z3: Tempo
+      colors.accentWarning.withValues(alpha: 0.75), // Z4: Threshold
+      colors.accentDanger, // Z5: Max
     ];
 
     const zoneLabels = <String>[
@@ -425,7 +426,7 @@ class _GarminCardioCard extends StatelessWidget {
           children: <Widget>[
             Row(
               children: <Widget>[
-                const Icon(Icons.favorite, size: 18, color: Color(0xFFE57373)),
+                Icon(Icons.favorite, size: 18, color: colors.accentDanger),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -492,16 +493,16 @@ class _GarminCardioCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF81C784).withValues(alpha: 0.15),
-                        border: Border.all(color: const Color(0xFF81C784)),
+                        color: colors.accentSuccess.withValues(alpha: 0.15),
+                        border: Border.all(color: colors.accentSuccess),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text(
-                        '✨ Base Dominan',
+                      child: Text(
+                        'Base Dominan',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF81C784),
+                          color: colors.accentSuccess,
                         ),
                       ),
                     ),
@@ -593,10 +594,10 @@ class _GarminElevationCadenceCard extends StatelessWidget {
       cadColor = colors.textSecondary;
     } else if (cad >= 170) {
       cadStatus = 'Optimal (Efisiensi Tinggi)';
-      cadColor = const Color(0xFF81C784);
+      cadColor = colors.accentSuccess;
     } else if (cad >= 155) {
       cadStatus = 'Baik (Standar)';
-      cadColor = const Color(0xFFFFD54F);
+      cadColor = colors.accentWarning;
     } else {
       cadStatus = 'Santai';
       cadColor = colors.textSecondary;
@@ -729,7 +730,6 @@ class _PersonalRecordsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final prs = prsAsync.value ?? const <String, BestEffortPrRecord>{};
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -741,19 +741,35 @@ class _PersonalRecordsCard extends StatelessWidget {
               style: AppTypography.metricLabel(colors.textSecondary),
             ),
             const SizedBox(height: 12),
-            if (prs.isEmpty)
-              Text(
-                'Belum ada PR 5K / 10K / Half Marathon / Marathon. Catat minimal 5 km untuk mendeteksi segmen tercepat.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              )
-            else
-              for (final dist in BestEffortDistance.values)
-                _PrRow(
-                  distance: dist,
-                  record: prs[dist.storageKey],
-                  unitSystem: unitSystem,
-                  colors: colors,
-                ),
+            prsAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+              error: (err, _) => Text(
+                'Gagal memuat data PR: $err',
+                style: TextStyle(color: colors.accentDanger, fontSize: 13),
+              ),
+              data: (prs) {
+                if (prs.isEmpty) {
+                  return Text(
+                    'Belum ada PR 5K / 10K / Half Marathon / Marathon. Catat minimal 5 km untuk mendeteksi segmen tercepat.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  );
+                }
+                return Column(
+                  children: <Widget>[
+                    for (final dist in BestEffortDistance.values)
+                      _PrRow(
+                        distance: dist,
+                        record: prs[dist.storageKey],
+                        unitSystem: unitSystem,
+                        colors: colors,
+                      ),
+                  ],
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -857,7 +873,6 @@ class _VdotPredictorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final est = vdotAsync.value;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -889,64 +904,83 @@ class _VdotPredictorCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            if (est == null)
-              Text(
-                'Selesaikan minimal 1 aktivitas lari ≥ 1.5 km untuk menghitung estimasi VO2max & prediksi lomba.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              )
-            else ...<Widget>[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: <Widget>[
-                  Text(
-                    est.vo2Max.toStringAsFixed(1),
-                    style: AppTypography.paceLarge(colors.textPrimary),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'ml/kg/min (VDOT-lite • estimasi)',
-                    style: AppTypography.chartAxis(colors.textSecondary),
-                  ),
-                ],
+            vdotAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Basis: ${est.sourceTitle} (${formatDuration(est.sourceDurationSec)})',
-                style: AppTypography.chartAxis(colors.textSecondary),
+              error: (err, _) => Text(
+                'Gagal menghitung VO2max: $err',
+                style: TextStyle(color: colors.accentDanger, fontSize: 13),
               ),
-              const SizedBox(height: 14),
-              const Divider(),
-              const SizedBox(height: 10),
-              for (final pred in est.predictions)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: <Widget>[
-                      SizedBox(
-                        width: 112,
-                        child: Text(
-                          pred.distance.label,
-                          style: AppTypography.splitTable(colors.textSecondary),
+              data: (est) {
+                if (est == null) {
+                  return Text(
+                    'Selesaikan minimal 1 aktivitas lari ≥ 1.5 km untuk menghitung estimasi VO2max & prediksi lomba.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: <Widget>[
+                        Text(
+                          est.vo2Max.toStringAsFixed(1),
+                          style: AppTypography.paceLarge(colors.textPrimary),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'ml/kg/min (VDOT-lite • estimasi)',
+                          style: AppTypography.chartAxis(colors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Basis: ${est.sourceTitle} (${formatDuration(est.sourceDurationSec)})',
+                      style: AppTypography.chartAxis(colors.textSecondary),
+                    ),
+                    const SizedBox(height: 14),
+                    const Divider(),
+                    const SizedBox(height: 10),
+                    for (final pred in est.predictions)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: <Widget>[
+                            SizedBox(
+                              width: 112,
+                              child: Text(
+                                pred.distance.label,
+                                style:
+                                    AppTypography.splitTable(colors.textSecondary),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                formatDuration(pred.predictedDurationSec),
+                                style:
+                                    AppTypography.splitTable(colors.textPrimary),
+                              ),
+                            ),
+                            Text(
+                              UnitFormatter.formatPaceWithUnit(
+                                pred.predictedPaceSecPerKm,
+                                unitSystem,
+                              ),
+                              style:
+                                  AppTypography.chartAxis(colors.textSecondary),
+                            ),
+                          ],
                         ),
                       ),
-                      Expanded(
-                        child: Text(
-                          formatDuration(pred.predictedDurationSec),
-                          style: AppTypography.splitTable(colors.textPrimary),
-                        ),
-                      ),
-                      Text(
-                        UnitFormatter.formatPaceWithUnit(
-                          pred.predictedPaceSecPerKm,
-                          unitSystem,
-                        ),
-                        style: AppTypography.chartAxis(colors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+                  ],
+                );
+              },
+            ),
           ],
         ),
       ),

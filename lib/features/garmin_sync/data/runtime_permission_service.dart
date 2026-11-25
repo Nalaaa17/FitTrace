@@ -39,14 +39,13 @@ class DeviceRuntimePermissionService implements RuntimePermissionService {
     }
 
     try {
-      final location = await Permission.locationWhenInUse.status;
       final notification = await Permission.notification.status;
       final storage = Platform.isAndroid
           ? await Permission.storage.status
           : PermissionStatus.granted;
 
       return RuntimePermissionsSnapshot(
-        locationGranted: location.isGranted,
+        locationGranted: true,
         notificationGranted: notification.isGranted,
         storageGranted: storage.isGranted,
       );
@@ -78,13 +77,12 @@ class DeviceRuntimePermissionService implements RuntimePermissionService {
 
     try {
       final results = await <Permission>[
-        Permission.locationWhenInUse,
         Permission.notification,
         if (Platform.isAndroid) Permission.storage,
       ].request();
 
       return RuntimePermissionsSnapshot(
-        locationGranted: results[Permission.locationWhenInUse]?.isGranted ?? false,
+        locationGranted: true,
         notificationGranted: results[Permission.notification]?.isGranted ?? false,
         storageGranted: Platform.isAndroid
             ? (results[Permission.storage]?.isGranted ?? false)

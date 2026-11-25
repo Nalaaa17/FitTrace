@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -57,10 +59,16 @@ class _GarminWebViewLoginScreenState
       return;
     }
 
-    final targetUrl = widget.isChallengeFallback &&
+    final candidateUrl = widget.isChallengeFallback &&
             widget.initialUrl == GarminWebViewLoginScreen.defaultLoginUrl
         ? GarminWebViewLoginScreen.challengeRecoveryUrl
         : widget.initialUrl;
+    final initialUri = Uri.tryParse(candidateUrl);
+    final safeUri = (initialUri != null &&
+            initialUri.scheme.toLowerCase() == 'https' &&
+            _isAllowedAuthHost(initialUri.host))
+        ? initialUri
+        : Uri.parse(GarminWebViewLoginScreen.defaultLoginUrl);
 
     final controller = WebViewController()
       ..setUserAgent(
@@ -69,6 +77,16 @@ class _GarminWebViewLoginScreenState
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
+          onNavigationRequest: (request) {
+            final uri = Uri.tryParse(request.url);
+            if (uri == null || uri.scheme.toLowerCase() != 'https') {
+              return NavigationDecision.prevent;
+            }
+            if (!_isAllowedAuthHost(uri.host)) {
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
           onProgress: (progress) {
             if (!mounted) return;
             setState(() => _progress = progress / 100.0);
@@ -87,14 +105,27 @@ class _GarminWebViewLoginScreenState
       );
 
     _controller = controller;
-    controller.loadRequest(Uri.parse(targetUrl));
+    controller.loadRequest(safeUri);
+  }
+
+  static bool _isAllowedAuthHost(String host) {
+    final lower = host.toLowerCase();
+    return lower == 'garmin.com' ||
+        lower.endsWith('.garmin.com') ||
+        lower.endsWith('.cloudflare.com') ||
+        lower == 'challenges.cloudflare.com' ||
+        lower.endsWith('.hcaptcha.com') ||
+        lower.endsWith('.recaptcha.net');
   }
 
   Future<void> _handlePageFinished(String url) async {
     if (!mounted || _isVerifying || _autoCaptureTriggered) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.scheme.toLowerCase() != 'https') return;
+    final host = uri.host.toLowerCase();
     final lower = url.toLowerCase();
 
-    if (lower.startsWith('https://www.garmin.com/') &&
+    if (host == 'www.garmin.com' &&
         !lower.contains('/signin') &&
         !lower.contains('/login') &&
         !lower.contains('/sign-in') &&
@@ -106,7 +137,7 @@ class _GarminWebViewLoginScreenState
     }
 
     final isAuthenticatedLanding =
-        lower.startsWith('https://connect.garmin.com/') &&
+        host == 'connect.garmin.com' &&
             !lower.contains('/signin') &&
             !lower.contains('/login') &&
             !lower.contains('/sign-in') &&
@@ -118,6 +149,22 @@ class _GarminWebViewLoginScreenState
       _autoCaptureTriggered = true;
       await _verifyCapturedSession(silentOnIncomplete: true);
     }
+  }
+
+  static String? _decodeJsStringResult(Object? raw) {
+    if (raw == null) return null;
+    final rawStr = raw.toString().trim();
+    if (rawStr.isEmpty || rawStr == 'null') return null;
+    try {
+      final decoded = jsonDecode(rawStr);
+      if (decoded is String) {
+        final trimmed = decoded.trim();
+        return (trimmed.isEmpty || trimmed == 'null') ? null : trimmed;
+      }
+    } on Object {
+      // Fallback for platforms returning unquoted string directly.
+    }
+    return rawStr;
   }
 
   Future<void> _verifyCapturedSession({bool silentOnIncomplete = false}) async {
@@ -158,21 +205,11 @@ class _GarminWebViewLoginScreenState
         final rawToken = await _controller?.runJavaScriptReturningResult(
           'window.localStorage.getItem("token") || window.localStorage.getItem("jwt") || window.sessionStorage.getItem("token") || ""',
         );
-        if (rawToken != null) {
-          final cleaned = rawToken.toString().replaceAll('"', '').trim();
-          if (cleaned.isNotEmpty && cleaned != 'null') {
-            bearerToken = cleaned;
-          }
-        }
+        bearerToken = _decodeJsStringResult(rawToken);
         final rawCsrf = await _controller?.runJavaScriptReturningResult(
           'window.localStorage.getItem("connect-csrf-token") || ""',
         );
-        if (rawCsrf != null) {
-          final cleaned = rawCsrf.toString().replaceAll('"', '').trim();
-          if (cleaned.isNotEmpty && cleaned != 'null') {
-            csrfToken = cleaned;
-          }
-        }
+        csrfToken = _decodeJsStringResult(rawCsrf);
       } on Object catch (_) {}
 
       final effectiveSession = session.copyWith(

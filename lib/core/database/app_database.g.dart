@@ -3,6 +3,506 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
+class $ShoesTable extends Shoes with TableInfo<$ShoesTable, ShoeRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ShoesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _brandMeta = const VerificationMeta('brand');
+  @override
+  late final GeneratedColumn<String> brand = GeneratedColumn<String>(
+    'brand',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _maxDistanceKmMeta = const VerificationMeta(
+    'maxDistanceKm',
+  );
+  @override
+  late final GeneratedColumn<double> maxDistanceKm = GeneratedColumn<double>(
+    'max_distance_km',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(600.0),
+  );
+  static const VerificationMeta _isDefaultMeta = const VerificationMeta(
+    'isDefault',
+  );
+  @override
+  late final GeneratedColumn<bool> isDefault = GeneratedColumn<bool>(
+    'is_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_default" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isRetiredMeta = const VerificationMeta(
+    'isRetired',
+  );
+  @override
+  late final GeneratedColumn<bool> isRetired = GeneratedColumn<bool>(
+    'is_retired',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_retired" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    brand,
+    maxDistanceKm,
+    isDefault,
+    isRetired,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shoes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ShoeRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('brand')) {
+      context.handle(
+        _brandMeta,
+        brand.isAcceptableOrUnknown(data['brand']!, _brandMeta),
+      );
+    }
+    if (data.containsKey('max_distance_km')) {
+      context.handle(
+        _maxDistanceKmMeta,
+        maxDistanceKm.isAcceptableOrUnknown(
+          data['max_distance_km']!,
+          _maxDistanceKmMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_default')) {
+      context.handle(
+        _isDefaultMeta,
+        isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
+      );
+    }
+    if (data.containsKey('is_retired')) {
+      context.handle(
+        _isRetiredMeta,
+        isRetired.isAcceptableOrUnknown(data['is_retired']!, _isRetiredMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ShoeRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ShoeRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      brand: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}brand'],
+      )!,
+      maxDistanceKm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}max_distance_km'],
+      )!,
+      isDefault: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_default'],
+      )!,
+      isRetired: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_retired'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ShoesTable createAlias(String alias) {
+    return $ShoesTable(attachedDatabase, alias);
+  }
+}
+
+class ShoeRecord extends DataClass implements Insertable<ShoeRecord> {
+  final int id;
+  final String name;
+  final String brand;
+  final double maxDistanceKm;
+  final bool isDefault;
+  final bool isRetired;
+  final int createdAt;
+  final int updatedAt;
+  const ShoeRecord({
+    required this.id,
+    required this.name,
+    required this.brand,
+    required this.maxDistanceKm,
+    required this.isDefault,
+    required this.isRetired,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['brand'] = Variable<String>(brand);
+    map['max_distance_km'] = Variable<double>(maxDistanceKm);
+    map['is_default'] = Variable<bool>(isDefault);
+    map['is_retired'] = Variable<bool>(isRetired);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  ShoesCompanion toCompanion(bool nullToAbsent) {
+    return ShoesCompanion(
+      id: Value(id),
+      name: Value(name),
+      brand: Value(brand),
+      maxDistanceKm: Value(maxDistanceKm),
+      isDefault: Value(isDefault),
+      isRetired: Value(isRetired),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ShoeRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ShoeRecord(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      brand: serializer.fromJson<String>(json['brand']),
+      maxDistanceKm: serializer.fromJson<double>(json['maxDistanceKm']),
+      isDefault: serializer.fromJson<bool>(json['isDefault']),
+      isRetired: serializer.fromJson<bool>(json['isRetired']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'brand': serializer.toJson<String>(brand),
+      'maxDistanceKm': serializer.toJson<double>(maxDistanceKm),
+      'isDefault': serializer.toJson<bool>(isDefault),
+      'isRetired': serializer.toJson<bool>(isRetired),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  ShoeRecord copyWith({
+    int? id,
+    String? name,
+    String? brand,
+    double? maxDistanceKm,
+    bool? isDefault,
+    bool? isRetired,
+    int? createdAt,
+    int? updatedAt,
+  }) => ShoeRecord(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    brand: brand ?? this.brand,
+    maxDistanceKm: maxDistanceKm ?? this.maxDistanceKm,
+    isDefault: isDefault ?? this.isDefault,
+    isRetired: isRetired ?? this.isRetired,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ShoeRecord copyWithCompanion(ShoesCompanion data) {
+    return ShoeRecord(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      brand: data.brand.present ? data.brand.value : this.brand,
+      maxDistanceKm: data.maxDistanceKm.present
+          ? data.maxDistanceKm.value
+          : this.maxDistanceKm,
+      isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
+      isRetired: data.isRetired.present ? data.isRetired.value : this.isRetired,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShoeRecord(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('brand: $brand, ')
+          ..write('maxDistanceKm: $maxDistanceKm, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('isRetired: $isRetired, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    brand,
+    maxDistanceKm,
+    isDefault,
+    isRetired,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ShoeRecord &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.brand == this.brand &&
+          other.maxDistanceKm == this.maxDistanceKm &&
+          other.isDefault == this.isDefault &&
+          other.isRetired == this.isRetired &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ShoesCompanion extends UpdateCompanion<ShoeRecord> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<String> brand;
+  final Value<double> maxDistanceKm;
+  final Value<bool> isDefault;
+  final Value<bool> isRetired;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  const ShoesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.brand = const Value.absent(),
+    this.maxDistanceKm = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    this.isRetired = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  ShoesCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    this.brand = const Value.absent(),
+    this.maxDistanceKm = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    this.isRetired = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+  }) : name = Value(name),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ShoeRecord> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<String>? brand,
+    Expression<double>? maxDistanceKm,
+    Expression<bool>? isDefault,
+    Expression<bool>? isRetired,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (brand != null) 'brand': brand,
+      if (maxDistanceKm != null) 'max_distance_km': maxDistanceKm,
+      if (isDefault != null) 'is_default': isDefault,
+      if (isRetired != null) 'is_retired': isRetired,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  ShoesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<String>? brand,
+    Value<double>? maxDistanceKm,
+    Value<bool>? isDefault,
+    Value<bool>? isRetired,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+  }) {
+    return ShoesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      brand: brand ?? this.brand,
+      maxDistanceKm: maxDistanceKm ?? this.maxDistanceKm,
+      isDefault: isDefault ?? this.isDefault,
+      isRetired: isRetired ?? this.isRetired,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (brand.present) {
+      map['brand'] = Variable<String>(brand.value);
+    }
+    if (maxDistanceKm.present) {
+      map['max_distance_km'] = Variable<double>(maxDistanceKm.value);
+    }
+    if (isDefault.present) {
+      map['is_default'] = Variable<bool>(isDefault.value);
+    }
+    if (isRetired.present) {
+      map['is_retired'] = Variable<bool>(isRetired.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShoesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('brand: $brand, ')
+          ..write('maxDistanceKm: $maxDistanceKm, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('isRetired: $isRetired, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ActivitiesTable extends Activities
     with TableInfo<$ActivitiesTable, ActivityRecord> {
   @override
@@ -302,6 +802,18 @@ class $ActivitiesTable extends Activities
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _shoeIdMeta = const VerificationMeta('shoeId');
+  @override
+  late final GeneratedColumn<int> shoeId = GeneratedColumn<int>(
+    'shoe_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES shoes (id) ON DELETE SET NULL',
+    ),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -352,6 +864,7 @@ class $ActivitiesTable extends Activities
     splitPacesSecPerKm,
     zoneDurationsSec,
     hasCustomTitle,
+    shoeId,
     createdAt,
     updatedAt,
   ];
@@ -584,6 +1097,12 @@ class $ActivitiesTable extends Activities
         ),
       );
     }
+    if (data.containsKey('shoe_id')) {
+      context.handle(
+        _shoeIdMeta,
+        shoeId.isAcceptableOrUnknown(data['shoe_id']!, _shoeIdMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -717,6 +1236,10 @@ class $ActivitiesTable extends Activities
         DriftSqlType.bool,
         data['${effectivePrefix}has_custom_title'],
       )!,
+      shoeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}shoe_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -770,6 +1293,7 @@ class ActivityRecord extends DataClass implements Insertable<ActivityRecord> {
 
   /// Marks titles renamed locally by the user so Garmin re-syncs keep them (M3-08).
   final bool hasCustomTitle;
+  final int? shoeId;
   final DateTime createdAt;
   final DateTime updatedAt;
   const ActivityRecord({
@@ -799,6 +1323,7 @@ class ActivityRecord extends DataClass implements Insertable<ActivityRecord> {
     required this.splitPacesSecPerKm,
     required this.zoneDurationsSec,
     required this.hasCustomTitle,
+    this.shoeId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -849,6 +1374,9 @@ class ActivityRecord extends DataClass implements Insertable<ActivityRecord> {
       );
     }
     map['has_custom_title'] = Variable<bool>(hasCustomTitle);
+    if (!nullToAbsent || shoeId != null) {
+      map['shoe_id'] = Variable<int>(shoeId);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -892,6 +1420,9 @@ class ActivityRecord extends DataClass implements Insertable<ActivityRecord> {
       splitPacesSecPerKm: Value(splitPacesSecPerKm),
       zoneDurationsSec: Value(zoneDurationsSec),
       hasCustomTitle: Value(hasCustomTitle),
+      shoeId: shoeId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shoeId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -937,6 +1468,7 @@ class ActivityRecord extends DataClass implements Insertable<ActivityRecord> {
         json['zoneDurationsSec'],
       ),
       hasCustomTitle: serializer.fromJson<bool>(json['hasCustomTitle']),
+      shoeId: serializer.fromJson<int?>(json['shoeId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -971,6 +1503,7 @@ class ActivityRecord extends DataClass implements Insertable<ActivityRecord> {
       'splitPacesSecPerKm': serializer.toJson<List<int>>(splitPacesSecPerKm),
       'zoneDurationsSec': serializer.toJson<List<int>>(zoneDurationsSec),
       'hasCustomTitle': serializer.toJson<bool>(hasCustomTitle),
+      'shoeId': serializer.toJson<int?>(shoeId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -1003,6 +1536,7 @@ class ActivityRecord extends DataClass implements Insertable<ActivityRecord> {
     List<int>? splitPacesSecPerKm,
     List<int>? zoneDurationsSec,
     bool? hasCustomTitle,
+    Value<int?> shoeId = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => ActivityRecord(
@@ -1036,6 +1570,7 @@ class ActivityRecord extends DataClass implements Insertable<ActivityRecord> {
     splitPacesSecPerKm: splitPacesSecPerKm ?? this.splitPacesSecPerKm,
     zoneDurationsSec: zoneDurationsSec ?? this.zoneDurationsSec,
     hasCustomTitle: hasCustomTitle ?? this.hasCustomTitle,
+    shoeId: shoeId.present ? shoeId.value : this.shoeId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -1109,6 +1644,7 @@ class ActivityRecord extends DataClass implements Insertable<ActivityRecord> {
       hasCustomTitle: data.hasCustomTitle.present
           ? data.hasCustomTitle.value
           : this.hasCustomTitle,
+      shoeId: data.shoeId.present ? data.shoeId.value : this.shoeId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1143,6 +1679,7 @@ class ActivityRecord extends DataClass implements Insertable<ActivityRecord> {
           ..write('splitPacesSecPerKm: $splitPacesSecPerKm, ')
           ..write('zoneDurationsSec: $zoneDurationsSec, ')
           ..write('hasCustomTitle: $hasCustomTitle, ')
+          ..write('shoeId: $shoeId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1177,6 +1714,7 @@ class ActivityRecord extends DataClass implements Insertable<ActivityRecord> {
     splitPacesSecPerKm,
     zoneDurationsSec,
     hasCustomTitle,
+    shoeId,
     createdAt,
     updatedAt,
   ]);
@@ -1210,6 +1748,7 @@ class ActivityRecord extends DataClass implements Insertable<ActivityRecord> {
           other.splitPacesSecPerKm == this.splitPacesSecPerKm &&
           other.zoneDurationsSec == this.zoneDurationsSec &&
           other.hasCustomTitle == this.hasCustomTitle &&
+          other.shoeId == this.shoeId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1241,6 +1780,7 @@ class ActivitiesCompanion extends UpdateCompanion<ActivityRecord> {
   final Value<List<int>> splitPacesSecPerKm;
   final Value<List<int>> zoneDurationsSec;
   final Value<bool> hasCustomTitle;
+  final Value<int?> shoeId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const ActivitiesCompanion({
@@ -1270,6 +1810,7 @@ class ActivitiesCompanion extends UpdateCompanion<ActivityRecord> {
     this.splitPacesSecPerKm = const Value.absent(),
     this.zoneDurationsSec = const Value.absent(),
     this.hasCustomTitle = const Value.absent(),
+    this.shoeId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1300,6 +1841,7 @@ class ActivitiesCompanion extends UpdateCompanion<ActivityRecord> {
     required List<int> splitPacesSecPerKm,
     required List<int> zoneDurationsSec,
     this.hasCustomTitle = const Value.absent(),
+    this.shoeId = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
   }) : title = Value(title),
@@ -1347,6 +1889,7 @@ class ActivitiesCompanion extends UpdateCompanion<ActivityRecord> {
     Expression<String>? splitPacesSecPerKm,
     Expression<String>? zoneDurationsSec,
     Expression<bool>? hasCustomTitle,
+    Expression<int>? shoeId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -1380,6 +1923,7 @@ class ActivitiesCompanion extends UpdateCompanion<ActivityRecord> {
         'split_paces_sec_per_km': splitPacesSecPerKm,
       if (zoneDurationsSec != null) 'zone_durations_sec': zoneDurationsSec,
       if (hasCustomTitle != null) 'has_custom_title': hasCustomTitle,
+      if (shoeId != null) 'shoe_id': shoeId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1412,6 +1956,7 @@ class ActivitiesCompanion extends UpdateCompanion<ActivityRecord> {
     Value<List<int>>? splitPacesSecPerKm,
     Value<List<int>>? zoneDurationsSec,
     Value<bool>? hasCustomTitle,
+    Value<int?>? shoeId,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -1442,6 +1987,7 @@ class ActivitiesCompanion extends UpdateCompanion<ActivityRecord> {
       splitPacesSecPerKm: splitPacesSecPerKm ?? this.splitPacesSecPerKm,
       zoneDurationsSec: zoneDurationsSec ?? this.zoneDurationsSec,
       hasCustomTitle: hasCustomTitle ?? this.hasCustomTitle,
+      shoeId: shoeId ?? this.shoeId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1540,6 +2086,9 @@ class ActivitiesCompanion extends UpdateCompanion<ActivityRecord> {
     if (hasCustomTitle.present) {
       map['has_custom_title'] = Variable<bool>(hasCustomTitle.value);
     }
+    if (shoeId.present) {
+      map['shoe_id'] = Variable<int>(shoeId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1578,6 +2127,7 @@ class ActivitiesCompanion extends UpdateCompanion<ActivityRecord> {
           ..write('splitPacesSecPerKm: $splitPacesSecPerKm, ')
           ..write('zoneDurationsSec: $zoneDurationsSec, ')
           ..write('hasCustomTitle: $hasCustomTitle, ')
+          ..write('shoeId: $shoeId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -3110,6 +3660,18 @@ class $UserPreferencesTableTable extends UserPreferencesTable
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _weeklyTargetKmMeta = const VerificationMeta(
+    'weeklyTargetKm',
+  );
+  @override
+  late final GeneratedColumn<double> weeklyTargetKm = GeneratedColumn<double>(
+    'weekly_target_km',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(30.0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3132,6 +3694,7 @@ class $UserPreferencesTableTable extends UserPreferencesTable
     lastBackupAt,
     backupReminderEnabled,
     lastBackupReminderAt,
+    weeklyTargetKm,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3301,6 +3864,15 @@ class $UserPreferencesTableTable extends UserPreferencesTable
         ),
       );
     }
+    if (data.containsKey('weekly_target_km')) {
+      context.handle(
+        _weeklyTargetKmMeta,
+        weeklyTargetKm.isAcceptableOrUnknown(
+          data['weekly_target_km']!,
+          _weeklyTargetKmMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3393,6 +3965,10 @@ class $UserPreferencesTableTable extends UserPreferencesTable
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_backup_reminder_at'],
       ),
+      weeklyTargetKm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}weekly_target_km'],
+      )!,
     );
   }
 
@@ -3426,6 +4002,7 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
   final DateTime? lastBackupAt;
   final bool backupReminderEnabled;
   final DateTime? lastBackupReminderAt;
+  final double weeklyTargetKm;
   const UserPreference({
     required this.id,
     required this.garminLoggedIn,
@@ -3447,6 +4024,7 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     this.lastBackupAt,
     required this.backupReminderEnabled,
     this.lastBackupReminderAt,
+    required this.weeklyTargetKm,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3495,6 +4073,7 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     if (!nullToAbsent || lastBackupReminderAt != null) {
       map['last_backup_reminder_at'] = Variable<DateTime>(lastBackupReminderAt);
     }
+    map['weekly_target_km'] = Variable<double>(weeklyTargetKm);
     return map;
   }
 
@@ -3532,6 +4111,7 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
       lastBackupReminderAt: lastBackupReminderAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastBackupReminderAt),
+      weeklyTargetKm: Value(weeklyTargetKm),
     );
   }
 
@@ -3581,6 +4161,7 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
       lastBackupReminderAt: serializer.fromJson<DateTime?>(
         json['lastBackupReminderAt'],
       ),
+      weeklyTargetKm: serializer.fromJson<double>(json['weeklyTargetKm']),
     );
   }
   @override
@@ -3615,6 +4196,7 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
       'lastBackupReminderAt': serializer.toJson<DateTime?>(
         lastBackupReminderAt,
       ),
+      'weeklyTargetKm': serializer.toJson<double>(weeklyTargetKm),
     };
   }
 
@@ -3639,6 +4221,7 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     Value<DateTime?> lastBackupAt = const Value.absent(),
     bool? backupReminderEnabled,
     Value<DateTime?> lastBackupReminderAt = const Value.absent(),
+    double? weeklyTargetKm,
   }) => UserPreference(
     id: id ?? this.id,
     garminLoggedIn: garminLoggedIn ?? this.garminLoggedIn,
@@ -3667,6 +4250,7 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     lastBackupReminderAt: lastBackupReminderAt.present
         ? lastBackupReminderAt.value
         : this.lastBackupReminderAt,
+    weeklyTargetKm: weeklyTargetKm ?? this.weeklyTargetKm,
   );
   UserPreference copyWithCompanion(UserPreferencesTableCompanion data) {
     return UserPreference(
@@ -3724,6 +4308,9 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
       lastBackupReminderAt: data.lastBackupReminderAt.present
           ? data.lastBackupReminderAt.value
           : this.lastBackupReminderAt,
+      weeklyTargetKm: data.weeklyTargetKm.present
+          ? data.weeklyTargetKm.value
+          : this.weeklyTargetKm,
     );
   }
 
@@ -3753,13 +4340,14 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
           ..write('onboardingCompleted: $onboardingCompleted, ')
           ..write('lastBackupAt: $lastBackupAt, ')
           ..write('backupReminderEnabled: $backupReminderEnabled, ')
-          ..write('lastBackupReminderAt: $lastBackupReminderAt')
+          ..write('lastBackupReminderAt: $lastBackupReminderAt, ')
+          ..write('weeklyTargetKm: $weeklyTargetKm')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     garminLoggedIn,
     lastSyncAt,
@@ -3780,7 +4368,8 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     lastBackupAt,
     backupReminderEnabled,
     lastBackupReminderAt,
-  );
+    weeklyTargetKm,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3806,7 +4395,8 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
           other.onboardingCompleted == this.onboardingCompleted &&
           other.lastBackupAt == this.lastBackupAt &&
           other.backupReminderEnabled == this.backupReminderEnabled &&
-          other.lastBackupReminderAt == this.lastBackupReminderAt);
+          other.lastBackupReminderAt == this.lastBackupReminderAt &&
+          other.weeklyTargetKm == this.weeklyTargetKm);
 }
 
 class UserPreferencesTableCompanion extends UpdateCompanion<UserPreference> {
@@ -3830,6 +4420,7 @@ class UserPreferencesTableCompanion extends UpdateCompanion<UserPreference> {
   final Value<DateTime?> lastBackupAt;
   final Value<bool> backupReminderEnabled;
   final Value<DateTime?> lastBackupReminderAt;
+  final Value<double> weeklyTargetKm;
   const UserPreferencesTableCompanion({
     this.id = const Value.absent(),
     this.garminLoggedIn = const Value.absent(),
@@ -3851,6 +4442,7 @@ class UserPreferencesTableCompanion extends UpdateCompanion<UserPreference> {
     this.lastBackupAt = const Value.absent(),
     this.backupReminderEnabled = const Value.absent(),
     this.lastBackupReminderAt = const Value.absent(),
+    this.weeklyTargetKm = const Value.absent(),
   });
   UserPreferencesTableCompanion.insert({
     this.id = const Value.absent(),
@@ -3873,6 +4465,7 @@ class UserPreferencesTableCompanion extends UpdateCompanion<UserPreference> {
     this.lastBackupAt = const Value.absent(),
     this.backupReminderEnabled = const Value.absent(),
     this.lastBackupReminderAt = const Value.absent(),
+    this.weeklyTargetKm = const Value.absent(),
   });
   static Insertable<UserPreference> custom({
     Expression<int>? id,
@@ -3895,6 +4488,7 @@ class UserPreferencesTableCompanion extends UpdateCompanion<UserPreference> {
     Expression<DateTime>? lastBackupAt,
     Expression<bool>? backupReminderEnabled,
     Expression<DateTime>? lastBackupReminderAt,
+    Expression<double>? weeklyTargetKm,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3926,6 +4520,7 @@ class UserPreferencesTableCompanion extends UpdateCompanion<UserPreference> {
         'backup_reminder_enabled': backupReminderEnabled,
       if (lastBackupReminderAt != null)
         'last_backup_reminder_at': lastBackupReminderAt,
+      if (weeklyTargetKm != null) 'weekly_target_km': weeklyTargetKm,
     });
   }
 
@@ -3950,6 +4545,7 @@ class UserPreferencesTableCompanion extends UpdateCompanion<UserPreference> {
     Value<DateTime?>? lastBackupAt,
     Value<bool>? backupReminderEnabled,
     Value<DateTime?>? lastBackupReminderAt,
+    Value<double>? weeklyTargetKm,
   }) {
     return UserPreferencesTableCompanion(
       id: id ?? this.id,
@@ -3978,6 +4574,7 @@ class UserPreferencesTableCompanion extends UpdateCompanion<UserPreference> {
       backupReminderEnabled:
           backupReminderEnabled ?? this.backupReminderEnabled,
       lastBackupReminderAt: lastBackupReminderAt ?? this.lastBackupReminderAt,
+      weeklyTargetKm: weeklyTargetKm ?? this.weeklyTargetKm,
     );
   }
 
@@ -4064,6 +4661,9 @@ class UserPreferencesTableCompanion extends UpdateCompanion<UserPreference> {
         lastBackupReminderAt.value,
       );
     }
+    if (weeklyTargetKm.present) {
+      map['weekly_target_km'] = Variable<double>(weeklyTargetKm.value);
+    }
     return map;
   }
 
@@ -4093,7 +4693,8 @@ class UserPreferencesTableCompanion extends UpdateCompanion<UserPreference> {
           ..write('onboardingCompleted: $onboardingCompleted, ')
           ..write('lastBackupAt: $lastBackupAt, ')
           ..write('backupReminderEnabled: $backupReminderEnabled, ')
-          ..write('lastBackupReminderAt: $lastBackupReminderAt')
+          ..write('lastBackupReminderAt: $lastBackupReminderAt, ')
+          ..write('weeklyTargetKm: $weeklyTargetKm')
           ..write(')'))
         .toString();
   }
@@ -4892,6 +5493,7 @@ class StoryPresetsCompanion extends UpdateCompanion<StoryPresetRecord> {
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
+  late final $ShoesTable shoes = $ShoesTable(this);
   late final $ActivitiesTable activities = $ActivitiesTable(this);
   late final $TrackPointsTable trackPoints = $TrackPointsTable(this);
   late final $LapSplitsTable lapSplits = $LapSplitsTable(this);
@@ -4925,6 +5527,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
+    shoes,
     activities,
     trackPoints,
     lapSplits,
@@ -4939,6 +5542,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'shoes',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('activities', kind: UpdateKind.update)],
+    ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
         'activities',
@@ -4963,6 +5573,354 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   ]);
 }
 
+typedef $$ShoesTableCreateCompanionBuilder = ShoesCompanion Function({
+  Value<int> id,
+  required String name,
+  Value<String> brand,
+  Value<double> maxDistanceKm,
+  Value<bool> isDefault,
+  Value<bool> isRetired,
+  required int createdAt,
+  required int updatedAt,
+});
+typedef $$ShoesTableUpdateCompanionBuilder = ShoesCompanion Function({
+  Value<int> id,
+  Value<String> name,
+  Value<String> brand,
+  Value<double> maxDistanceKm,
+  Value<bool> isDefault,
+  Value<bool> isRetired,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+});
+
+final class $$ShoesTableReferences
+    extends BaseReferences<_$AppDatabase, $ShoesTable, ShoeRecord> {
+  $$ShoesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$ActivitiesTable, List<ActivityRecord>>
+  _activitiesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.activities,
+    aliasName: 'shoes__id__activities__shoe_id',
+  );
+
+  $$ActivitiesTableProcessedTableManager get activitiesRefs {
+    final manager = $$ActivitiesTableTableManager(
+      $_db,
+      $_db.activities,
+    ).filter((f) => f.shoeId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_activitiesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$ShoesTableFilterComposer extends Composer<_$AppDatabase, $ShoesTable> {
+  $$ShoesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get brand => $composableBuilder(
+    column: $table.brand,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get maxDistanceKm => $composableBuilder(
+    column: $table.maxDistanceKm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isRetired => $composableBuilder(
+    column: $table.isRetired,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> activitiesRefs(
+    Expression<bool> Function($$ActivitiesTableFilterComposer f) f,
+  ) {
+    final $$ActivitiesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.activities,
+      getReferencedColumn: (t) => t.shoeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivitiesTableFilterComposer(
+            $db: $db,
+            $table: $db.activities,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ShoesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ShoesTable> {
+  $$ShoesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get brand => $composableBuilder(
+    column: $table.brand,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get maxDistanceKm => $composableBuilder(
+    column: $table.maxDistanceKm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isRetired => $composableBuilder(
+    column: $table.isRetired,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ShoesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ShoesTable> {
+  $$ShoesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get brand =>
+      $composableBuilder(column: $table.brand, builder: (column) => column);
+
+  GeneratedColumn<double> get maxDistanceKm => $composableBuilder(
+    column: $table.maxDistanceKm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isDefault =>
+      $composableBuilder(column: $table.isDefault, builder: (column) => column);
+
+  GeneratedColumn<bool> get isRetired =>
+      $composableBuilder(column: $table.isRetired, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> activitiesRefs<T extends Object>(
+    Expression<T> Function($$ActivitiesTableAnnotationComposer a) f,
+  ) {
+    final $$ActivitiesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.activities,
+      getReferencedColumn: (t) => t.shoeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivitiesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.activities,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ShoesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ShoesTable,
+          ShoeRecord,
+          $$ShoesTableFilterComposer,
+          $$ShoesTableOrderingComposer,
+          $$ShoesTableAnnotationComposer,
+          $$ShoesTableCreateCompanionBuilder,
+          $$ShoesTableUpdateCompanionBuilder,
+          (ShoeRecord, $$ShoesTableReferences),
+          ShoeRecord,
+          PrefetchHooks Function({bool activitiesRefs})
+        > {
+  $$ShoesTableTableManager(_$AppDatabase db, $ShoesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ShoesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ShoesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ShoesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> brand = const Value.absent(),
+                Value<double> maxDistanceKm = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                Value<bool> isRetired = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => ShoesCompanion(
+                id: id,
+                name: name,
+                brand: brand,
+                maxDistanceKm: maxDistanceKm,
+                isDefault: isDefault,
+                isRetired: isRetired,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                Value<String> brand = const Value.absent(),
+                Value<double> maxDistanceKm = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                Value<bool> isRetired = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+              }) => ShoesCompanion.insert(
+                id: id,
+                name: name,
+                brand: brand,
+                maxDistanceKm: maxDistanceKm,
+                isDefault: isDefault,
+                isRetired: isRetired,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ShoesTable, ShoeRecord>(table),
+                  $$ShoesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({activitiesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (activitiesRefs) db.activities],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (activitiesRefs)
+                    await $_getPrefetchedDataByColumns<
+                      ShoeRecord,
+                      $ShoesTable,
+                      ActivityRecord,
+                      $ActivitiesTable
+                    >(
+                      currentTable: table,
+                      referencedTable: $$ShoesTableReferences
+                          ._activitiesRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$ShoesTableReferences(db, table, p0).activitiesRefs,
+                      currentColumn: 'id',
+                      referencedColumn: 'shoe_id',
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ShoesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ShoesTable,
+      ShoeRecord,
+      $$ShoesTableFilterComposer,
+      $$ShoesTableOrderingComposer,
+      $$ShoesTableAnnotationComposer,
+      $$ShoesTableCreateCompanionBuilder,
+      $$ShoesTableUpdateCompanionBuilder,
+      (ShoeRecord, $$ShoesTableReferences),
+      ShoeRecord,
+      PrefetchHooks Function({bool activitiesRefs})
+    >;
 typedef $$ActivitiesTableCreateCompanionBuilder = ActivitiesCompanion Function({
   Value<int> id,
   Value<int?> garminActivityId,
@@ -4990,6 +5948,7 @@ typedef $$ActivitiesTableCreateCompanionBuilder = ActivitiesCompanion Function({
   required List<int> splitPacesSecPerKm,
   required List<int> zoneDurationsSec,
   Value<bool> hasCustomTitle,
+  Value<int?> shoeId,
   required DateTime createdAt,
   required DateTime updatedAt,
 });
@@ -5020,6 +5979,7 @@ typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
   Value<List<int>> splitPacesSecPerKm,
   Value<List<int>> zoneDurationsSec,
   Value<bool> hasCustomTitle,
+  Value<int?> shoeId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -5027,6 +5987,23 @@ typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
 final class $$ActivitiesTableReferences
     extends BaseReferences<_$AppDatabase, $ActivitiesTable, ActivityRecord> {
   $$ActivitiesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $ShoesTable _shoeIdTable(_$AppDatabase db) =>
+      db.shoes.createAlias('activities__shoe_id__shoes__id');
+
+  $$ShoesTableProcessedTableManager? get shoeId {
+    final $_column = $_itemColumn<int>('shoe_id');
+    if ($_column == null) return null;
+    final manager = $$ShoesTableTableManager(
+      $_db,
+      $_db.shoes,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_shoeIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
 
   static MultiTypedResultKey<$TrackPointsTable, List<TrackPointRecord>>
   _trackPointsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
@@ -5236,6 +6213,29 @@ class $$ActivitiesTableFilterComposer
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$ShoesTableFilterComposer get shoeId {
+    final $$ShoesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shoeId,
+      referencedTable: $db.shoes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ShoesTableFilterComposer(
+            $db: $db,
+            $table: $db.shoes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 
   Expression<bool> trackPointsRefs(
     Expression<bool> Function($$TrackPointsTableFilterComposer f) f,
@@ -5461,6 +6461,29 @@ class $$ActivitiesTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$ShoesTableOrderingComposer get shoeId {
+    final $$ShoesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shoeId,
+      referencedTable: $db.shoes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ShoesTableOrderingComposer(
+            $db: $db,
+            $table: $db.shoes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$ActivitiesTableAnnotationComposer
@@ -5600,6 +6623,29 @@ class $$ActivitiesTableAnnotationComposer
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
+  $$ShoesTableAnnotationComposer get shoeId {
+    final $$ShoesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shoeId,
+      referencedTable: $db.shoes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ShoesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.shoes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   Expression<T> trackPointsRefs<T extends Object>(
     Expression<T> Function($$TrackPointsTableAnnotationComposer a) f,
   ) {
@@ -5691,6 +6737,7 @@ class $$ActivitiesTableTableManager
           (ActivityRecord, $$ActivitiesTableReferences),
           ActivityRecord,
           PrefetchHooks Function({
+            bool shoeId,
             bool trackPointsRefs,
             bool lapSplitsRefs,
             bool activityBestEffortsRefs,
@@ -5735,6 +6782,7 @@ class $$ActivitiesTableTableManager
                 Value<List<int>> splitPacesSecPerKm = const Value.absent(),
                 Value<List<int>> zoneDurationsSec = const Value.absent(),
                 Value<bool> hasCustomTitle = const Value.absent(),
+                Value<int?> shoeId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => ActivitiesCompanion(
@@ -5764,6 +6812,7 @@ class $$ActivitiesTableTableManager
                 splitPacesSecPerKm: splitPacesSecPerKm,
                 zoneDurationsSec: zoneDurationsSec,
                 hasCustomTitle: hasCustomTitle,
+                shoeId: shoeId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -5795,6 +6844,7 @@ class $$ActivitiesTableTableManager
                 required List<int> splitPacesSecPerKm,
                 required List<int> zoneDurationsSec,
                 Value<bool> hasCustomTitle = const Value.absent(),
+                Value<int?> shoeId = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
               }) => ActivitiesCompanion.insert(
@@ -5824,6 +6874,7 @@ class $$ActivitiesTableTableManager
                 splitPacesSecPerKm: splitPacesSecPerKm,
                 zoneDurationsSec: zoneDurationsSec,
                 hasCustomTitle: hasCustomTitle,
+                shoeId: shoeId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -5837,6 +6888,7 @@ class $$ActivitiesTableTableManager
               .toList(),
           prefetchHooksCallback:
               ({
+                shoeId = false,
                 trackPointsRefs = false,
                 lapSplitsRefs = false,
                 activityBestEffortsRefs = false,
@@ -5848,7 +6900,36 @@ class $$ActivitiesTableTableManager
                     if (lapSplitsRefs) db.lapSplits,
                     if (activityBestEffortsRefs) db.activityBestEfforts,
                   ],
-                  addJoins: null,
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (shoeId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.shoeId,
+                            referencedTable: $$ActivitiesTableReferences
+                                ._shoeIdTable(db),
+                            referencedColumn: $$ActivitiesTableReferences
+                                ._shoeIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (trackPointsRefs)
@@ -5932,6 +7013,7 @@ typedef $$ActivitiesTableProcessedTableManager =
       (ActivityRecord, $$ActivitiesTableReferences),
       ActivityRecord,
       PrefetchHooks Function({
+        bool shoeId,
         bool trackPointsRefs,
         bool lapSplitsRefs,
         bool activityBestEffortsRefs,
@@ -6791,6 +7873,7 @@ typedef $$UserPreferencesTableTableCreateCompanionBuilder =
       Value<DateTime?> lastBackupAt,
       Value<bool> backupReminderEnabled,
       Value<DateTime?> lastBackupReminderAt,
+      Value<double> weeklyTargetKm,
     });
 typedef $$UserPreferencesTableTableUpdateCompanionBuilder =
     UserPreferencesTableCompanion Function({
@@ -6814,6 +7897,7 @@ typedef $$UserPreferencesTableTableUpdateCompanionBuilder =
       Value<DateTime?> lastBackupAt,
       Value<bool> backupReminderEnabled,
       Value<DateTime?> lastBackupReminderAt,
+      Value<double> weeklyTargetKm,
     });
 
 class $$UserPreferencesTableTableFilterComposer
@@ -6923,6 +8007,11 @@ class $$UserPreferencesTableTableFilterComposer
 
   ColumnFilters<DateTime> get lastBackupReminderAt => $composableBuilder(
     column: $table.lastBackupReminderAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get weeklyTargetKm => $composableBuilder(
+    column: $table.weeklyTargetKm,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7035,6 +8124,11 @@ class $$UserPreferencesTableTableOrderingComposer
     column: $table.lastBackupReminderAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get weeklyTargetKm => $composableBuilder(
+    column: $table.weeklyTargetKm,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$UserPreferencesTableTableAnnotationComposer
@@ -7140,6 +8234,11 @@ class $$UserPreferencesTableTableAnnotationComposer
     column: $table.lastBackupReminderAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<double> get weeklyTargetKm => $composableBuilder(
+    column: $table.weeklyTargetKm,
+    builder: (column) => column,
+  );
 }
 
 class $$UserPreferencesTableTableTableManager
@@ -7206,6 +8305,7 @@ class $$UserPreferencesTableTableTableManager
                 Value<DateTime?> lastBackupAt = const Value.absent(),
                 Value<bool> backupReminderEnabled = const Value.absent(),
                 Value<DateTime?> lastBackupReminderAt = const Value.absent(),
+                Value<double> weeklyTargetKm = const Value.absent(),
               }) => UserPreferencesTableCompanion(
                 id: id,
                 garminLoggedIn: garminLoggedIn,
@@ -7227,6 +8327,7 @@ class $$UserPreferencesTableTableTableManager
                 lastBackupAt: lastBackupAt,
                 backupReminderEnabled: backupReminderEnabled,
                 lastBackupReminderAt: lastBackupReminderAt,
+                weeklyTargetKm: weeklyTargetKm,
               ),
           createCompanionCallback:
               ({
@@ -7251,6 +8352,7 @@ class $$UserPreferencesTableTableTableManager
                 Value<DateTime?> lastBackupAt = const Value.absent(),
                 Value<bool> backupReminderEnabled = const Value.absent(),
                 Value<DateTime?> lastBackupReminderAt = const Value.absent(),
+                Value<double> weeklyTargetKm = const Value.absent(),
               }) => UserPreferencesTableCompanion.insert(
                 id: id,
                 garminLoggedIn: garminLoggedIn,
@@ -7272,6 +8374,7 @@ class $$UserPreferencesTableTableTableManager
                 lastBackupAt: lastBackupAt,
                 backupReminderEnabled: backupReminderEnabled,
                 lastBackupReminderAt: lastBackupReminderAt,
+                weeklyTargetKm: weeklyTargetKm,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -7881,6 +8984,8 @@ typedef $$StoryPresetsTableProcessedTableManager =
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
+  $$ShoesTableTableManager get shoes =>
+      $$ShoesTableTableManager(_db, _db.shoes);
   $$ActivitiesTableTableManager get activities =>
       $$ActivitiesTableTableManager(_db, _db.activities);
   $$TrackPointsTableTableManager get trackPoints =>

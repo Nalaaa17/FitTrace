@@ -67,25 +67,34 @@ class WebViewSilentSessionRefresher implements GarminSessionRefresher {
       await controller.setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (request) {
-            final lower = request.url.toLowerCase();
-            if (_isChallengeUrl(lower)) {
+            final uri = Uri.tryParse(request.url);
+            if (uri == null || uri.scheme.toLowerCase() != 'https') {
+              return NavigationDecision.prevent;
+            }
+            if (_isChallengeUrl(request.url.toLowerCase())) {
               finish(RefreshOutcome.challengeRequired);
+              return NavigationDecision.prevent;
+            }
+            if (!_isAllowedGarminHost(uri.host)) {
               return NavigationDecision.prevent;
             }
             return NavigationDecision.navigate;
           },
           onPageFinished: (url) async {
             if (completer.isCompleted) return;
+            final uri = Uri.tryParse(url);
+            if (uri == null || uri.scheme.toLowerCase() != 'https') return;
+            final host = uri.host.toLowerCase();
             final lower = url.toLowerCase();
             if (_isChallengeUrl(lower)) {
               finish(RefreshOutcome.challengeRequired);
               return;
             }
-            if (lower.contains('sso.garmin.com') || lower.contains('/signin')) {
+            if (host == 'sso.garmin.com' || lower.contains('/signin')) {
               finish(RefreshOutcome.expiredOrLoginRequired);
               return;
             }
-            if (lower.startsWith('https://connect.garmin.com')) {
+            if (host == 'connect.garmin.com') {
               final extracted = await cookieExtractor.extractGarminSession(
                 jsCookieFallback: () async {
                   final raw = await controller
@@ -119,6 +128,11 @@ class WebViewSilentSessionRefresher implements GarminSessionRefresher {
       AppLogger.warn('SilentRefresh', 'Silent refresh aborted', error);
       return RefreshOutcome.failed;
     }
+  }
+
+  static bool _isAllowedGarminHost(String host) {
+    final lower = host.toLowerCase();
+    return lower == 'garmin.com' || lower.endsWith('.garmin.com');
   }
 
   static bool _isChallengeUrl(String lowerUrl) =>

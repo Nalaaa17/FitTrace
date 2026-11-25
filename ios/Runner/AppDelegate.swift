@@ -9,7 +9,10 @@ import UserNotifications
   private let storyShareChannel = "com.fittrace.app/story_share"
   private let backgroundSyncChannel = "com.fittrace.app/background_sync"
   private let notificationsChannel = "com.fittrace.app/notifications"
+  private let shareIntentChannel = "com.fittrace.app/share_intent"
   private let bgSyncTaskIdentifier = "com.fittrace.app.garminSync"
+  private let bgSyncIntervalKey = "fittrace_bg_sync_interval_minutes"
+  private var initialSharedPaths: [String] = []
 
   override func application(
     _ application: UIApplication,
@@ -53,6 +56,31 @@ import UserNotifications
     notifChannel.setMethodCallHandler { [weak self] call, result in
       self?.handleNotificationCall(call: call, result: result)
     }
+
+    let shareChannel = FlutterMethodChannel(
+      name: shareIntentChannel,
+      binaryMessenger: messenger
+    )
+    shareChannel.setMethodCallHandler { [weak self] call, result in
+      if call.method == "getInitialSharedFiles" {
+        result(self?.initialSharedPaths ?? [])
+        self?.initialSharedPaths = []
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    if url.isFileURL {
+      initialSharedPaths.append(url.path)
+      return true
+    }
+    return super.application(app, open: url, options: options)
   }
 
   private func handleStoryShareCall(call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -147,6 +175,7 @@ import UserNotifications
 
     let enabled = (args["enabled"] as? Bool) ?? false
     let intervalMinutes = max(15, (args["intervalMinutes"] as? Int) ?? 15)
+    UserDefaults.standard.set(intervalMinutes, forKey: bgSyncIntervalKey)
     scheduleIosAppRefresh(enabled: enabled, intervalMinutes: intervalMinutes)
     result(true)
   }
@@ -163,7 +192,8 @@ import UserNotifications
 
   @available(iOS 13.0, *)
   private func handleAppRefresh(task: BGAppRefreshTask) {
-    scheduleIosAppRefresh(enabled: true, intervalMinutes: 15)
+    let savedInterval = max(15, UserDefaults.standard.integer(forKey: bgSyncIntervalKey))
+    scheduleIosAppRefresh(enabled: true, intervalMinutes: savedInterval)
     let workerEngine = FlutterEngine(name: "fittrace_bg_sync", project: nil, allowHeadlessExecution: true)
     workerEngine.run(withEntrypoint: "backgroundSyncMain")
 

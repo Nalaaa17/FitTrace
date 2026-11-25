@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../feed/presentation/feed_screen.dart';
 import '../../../core/database/database_provider.dart';
+import '../../../core/logging/app_logger.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/connectivity_provider.dart';
 import '../../garmin_sync/application/garmin_sync_providers.dart';
 import '../../import/application/import_providers.dart';
 import '../../settings/presentation/settings_screen.dart';
@@ -89,6 +92,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.read(garminSyncControllerProvider.notifier).maybeAutoSyncOnResume();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      AppLogger.info('AppLifecycle', 'Entered $state');
     }
   }
 
@@ -134,15 +140,65 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   @override
   Widget build(BuildContext context) {
     final currentIndex = ref.watch(shellTabIndexProvider);
+    final isOffline = ref.watch(isOfflineProvider).value ?? false;
+    final colors = context.fitColors;
     _loadedTabs.add(currentIndex);
 
     return Scaffold(
-      body: IndexedStack(
-        index: currentIndex,
+      body: Column(
         children: <Widget>[
-          _loadedTabs.contains(0) ? const FeedScreen() : const SizedBox.shrink(),
-          _loadedTabs.contains(1) ? const StatsScreen() : const SizedBox.shrink(),
-          _loadedTabs.contains(2) ? const SettingsScreen() : const SizedBox.shrink(),
+          if (isOffline)
+            Material(
+              color: colors.bgElevated,
+              child: SafeArea(
+                bottom: false,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: colors.hairlineBorder),
+                    ),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.cloud_off_rounded,
+                        size: 14,
+                        color: colors.textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Mode Offline — Menampilkan data lokal',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          Expanded(
+            child: IndexedStack(
+              index: currentIndex,
+              children: <Widget>[
+                _loadedTabs.contains(0)
+                    ? const FeedScreen()
+                    : const SizedBox.shrink(),
+                _loadedTabs.contains(1)
+                    ? const StatsScreen()
+                    : const SizedBox.shrink(),
+                _loadedTabs.contains(2)
+                    ? const SettingsScreen()
+                    : const SizedBox.shrink(),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: NavigationBar(

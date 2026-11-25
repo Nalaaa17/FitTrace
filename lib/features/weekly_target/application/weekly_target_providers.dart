@@ -1,12 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/database_provider.dart';
+import '../data/weekly_target_repository.dart';
 import '../domain/weekly_target.dart';
 
 class WeeklyTargetNotifier extends AsyncNotifier<WeeklyTargetProgress> {
   @override
   Future<WeeklyTargetProgress> build() async {
-    final db = ref.watch(appDatabaseProvider);
+    // Re-fetch automatically when activities are imported, synced, or deleted.
+    ref.watch(activitiesMutationTickProvider);
+    final repo = ref.watch(weeklyTargetRepositoryProvider);
 
     final now = DateTime.now().toUtc();
     // Monday as start of week (weekday: 1 = Monday, 7 = Sunday)
@@ -20,12 +23,12 @@ class WeeklyTargetNotifier extends AsyncNotifier<WeeklyTargetProgress> {
       const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
     );
 
-    final targetKm = await db.getWeeklyTargetKm();
-    final totalMeters = await db.getDistanceMetersBetween(
+    final targetKm = await repo.getWeeklyTargetKm();
+    final totalMeters = await repo.getDistanceMetersBetween(
       startUtc: mondayStart,
       endUtc: sundayEnd,
     );
-    final activityCount = await db.getActivityCountBetween(
+    final activityCount = await repo.getActivityCountBetween(
       startUtc: mondayStart,
       endUtc: sundayEnd,
     );
@@ -43,8 +46,8 @@ class WeeklyTargetNotifier extends AsyncNotifier<WeeklyTargetProgress> {
   }
 
   Future<void> updateTargetKm(double newTargetKm) async {
-    final db = ref.read(appDatabaseProvider);
-    await db.setWeeklyTargetKm(newTargetKm);
+    final repo = ref.read(weeklyTargetRepositoryProvider);
+    await repo.setWeeklyTargetKm(newTargetKm);
     ref.invalidateSelf();
   }
 }
@@ -53,4 +56,3 @@ final weeklyTargetProvider =
     AsyncNotifierProvider<WeeklyTargetNotifier, WeeklyTargetProgress>(
   WeeklyTargetNotifier.new,
 );
-

@@ -21,7 +21,7 @@ class FlutterSecureKeyValueStore implements SecureKeyValueStore {
             const FlutterSecureStorage(
               aOptions: AndroidOptions(),
               iOptions: IOSOptions(
-                accessibility: KeychainAccessibility.first_unlock,
+                accessibility: KeychainAccessibility.first_unlock_this_device,
               ),
             );
 
@@ -151,12 +151,16 @@ class SecureCookieStore {
       if (expiresUtc == null && cookie.maxAge != null) {
         expiresUtc = nowUtc.add(Duration(seconds: cookie.maxAge!));
       }
+      final rawDomain = cookie.domain?.trim();
+      final effectiveDomain = (rawDomain != null &&
+              rawDomain.isNotEmpty &&
+              _isDomainMatch(defaultDomain, rawDomain))
+          ? rawDomain
+          : defaultDomain;
       return GarminCookieEntry(
         name: cookie.name.trim(),
         value: cookie.value,
-        domain: (cookie.domain != null && cookie.domain!.trim().isNotEmpty)
-            ? cookie.domain!.trim()
-            : defaultDomain,
+        domain: effectiveDomain,
         path: cookie.path ?? '/',
         expiresAtUtc: expiresUtc,
         httpOnly: cookie.httpOnly,
@@ -171,12 +175,42 @@ class SecureCookieStore {
       final name = parts.first.substring(0, eqIndex).trim();
       final value = parts.first.substring(eqIndex + 1).trim();
       if (name.isEmpty) return null;
+      DateTime? expiresUtc;
+      var httpOnly = false;
+      var secure = false;
+      var path = '/';
+      for (final attr in parts.skip(1)) {
+        final trimmed = attr.trim();
+        final lower = trimmed.toLowerCase();
+        if (lower == 'httponly') {
+          httpOnly = true;
+        } else if (lower == 'secure') {
+          secure = true;
+        } else if (lower.startsWith('path=')) {
+          path = trimmed.substring(5).trim();
+        } else if (lower.startsWith('max-age=')) {
+          final secs = int.tryParse(trimmed.substring(8).trim());
+          if (secs != null) {
+            expiresUtc = nowUtc.add(Duration(seconds: secs));
+          }
+        }
+      }
       return GarminCookieEntry(
         name: name,
         value: value,
         domain: defaultDomain,
+        path: path,
+        expiresAtUtc: expiresUtc,
+        httpOnly: httpOnly,
+        secure: secure,
       );
     }
+  }
+
+  static bool _isDomainMatch(String requestHost, String cookieDomain) {
+    final host = requestHost.toLowerCase();
+    final domain = cookieDomain.toLowerCase().replaceFirst(RegExp(r'^\.'), '');
+    return host == domain || host.endsWith('.$domain');
   }
 }
 

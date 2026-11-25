@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:metrics_engine/metrics_engine.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/unit_formatter.dart';
 import '../../domain/interval_session.dart';
 
@@ -16,39 +17,39 @@ class IntervalBreakdownCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.fitColors;
+
     if (!result.isIntervalSession || result.reps.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF16181E),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, size: 20, color: Colors.white.withValues(alpha: 0.4)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Lari Berkelanjutan (Steady Run) — Pola interval tidak terdeteksi.',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.55),
-                  fontSize: 12,
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, size: 20, color: colors.textSecondary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Lari Stabil — Pola interval tidak terdeteksi.',
+                  style: TextStyle(
+                    fontFamily: AppTypography.bodyFontFamily,
+                    color: colors.textSecondary,
+                    fontSize: 12,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
 
     final reps = result.reps;
+    final accent = colors.accentWarning;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E222B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFF9100).withValues(alpha: 0.35)),
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: accent.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,23 +65,20 @@ class IntervalBreakdownCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF9100).withValues(alpha: 0.2),
+                        color: accent.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.speed_rounded,
-                        color: Color(0xFFFF9100),
+                        color: accent,
                         size: 20,
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
+                    Text(
                       'DETEKSI INTERVAL OTOMATIS',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        letterSpacing: 0.5,
+                      style: AppTypography.metricLabel(colors.textPrimary).copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -88,15 +86,17 @@ class IntervalBreakdownCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF9100).withValues(alpha: 0.2),
+                    color: accent.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     '${reps.length}x REPETISI',
-                    style: const TextStyle(
-                      color: Color(0xFFFF9100),
+                    style: TextStyle(
+                      fontFamily: AppTypography.bodyFontFamily,
+                      color: accent,
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
+                      fontFeatures: AppTypography.tabularFigures,
                     ),
                   ),
                 ),
@@ -104,7 +104,7 @@ class IntervalBreakdownCard extends StatelessWidget {
             ),
           ),
 
-          const Divider(height: 1, color: Colors.white12),
+          Divider(height: 1, color: colors.hairlineBorder),
 
           // Summary stats
           Padding(
@@ -113,44 +113,46 @@ class IntervalBreakdownCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _buildSummaryMetric(
+                    colors: colors,
                     label: 'TOTAL KERJA',
-                    value: _formatDist(
+                    value: UnitFormatter.formatShortDistance(
                       result.totalWorkDistanceMeters,
+                      unitSystem,
                     ),
                   ),
                 ),
-                Container(height: 28, width: 1, color: Colors.white12),
+                Container(height: 28, width: 1, color: colors.hairlineBorder),
                 Expanded(
                   child: _buildSummaryMetric(
-                    label: 'PACE KERJA RATA2',
+                    colors: colors,
+                    label: 'PACE RATA-RATA',
                     value: UnitFormatter.formatPace(
                       result.avgWorkPaceSecPerKm,
                       unitSystem,
                     ),
                   ),
                 ),
-                Container(height: 28, width: 1, color: Colors.white12),
+                Container(height: 28, width: 1, color: colors.hairlineBorder),
                 Expanded(
                   child: _buildSummaryMetric(
+                    colors: colors,
                     label: 'WAKTU ISTIRAHAT',
-                    value: _formatDur(
-                      result.totalRestDurationSec,
-                    ),
+                    value: _formatDur(result.totalRestDurationSec),
                   ),
                 ),
               ],
             ),
           ),
 
-          const Divider(height: 1, color: Colors.white12),
+          Divider(height: 1, color: colors.hairlineBorder),
 
           // Reps List
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: reps.length,
-            separatorBuilder: (_, __) =>
-                const Divider(height: 1, color: Colors.white10),
+            separatorBuilder: (_, _) =>
+                Divider(height: 1, color: colors.hairlineBorder),
             itemBuilder: (ctx, idx) {
               final rep = reps[idx];
               return Padding(
@@ -167,29 +169,30 @@ class IntervalBreakdownCard extends StatelessWidget {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFF9100).withValues(alpha: 0.18),
+                            color: accent.withValues(alpha: 0.16),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             'REP ${rep.repIndex}',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Color(0xFFFF9100),
+                            style: TextStyle(
+                              fontFamily: AppTypography.bodyFontFamily,
+                              color: accent,
                               fontWeight: FontWeight.bold,
                               fontSize: 11,
+                              fontFeatures: AppTypography.tabularFigures,
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            _formatDist(
+                            UnitFormatter.formatShortDistance(
                               rep.workDistanceMeters,
+                              unitSystem,
                             ),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: AppTypography.splitTable(colors.textPrimary).copyWith(
                               fontWeight: FontWeight.bold,
-                              fontSize: 13,
                             ),
                           ),
                         ),
@@ -198,17 +201,14 @@ class IntervalBreakdownCard extends StatelessWidget {
                             rep.workPaceSecPerKm,
                             unitSystem,
                           ),
-                          style: const TextStyle(
-                            color: Color(0xFFFF9100),
+                          style: AppTypography.splitTable(accent).copyWith(
                             fontWeight: FontWeight.bold,
-                            fontSize: 13,
                           ),
                         ),
                         const SizedBox(width: 12),
                         Text(
                           _formatDur(rep.workDurationSec),
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
+                          style: AppTypography.splitTable(colors.textSecondary).copyWith(
                             fontSize: 12,
                           ),
                         ),
@@ -216,16 +216,15 @@ class IntervalBreakdownCard extends StatelessWidget {
                           const SizedBox(width: 10),
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.favorite,
-                                color: Color(0xFFFF5252),
+                                color: colors.accentDanger,
                                 size: 12,
                               ),
                               const SizedBox(width: 2),
                               Text(
                                 '${rep.workAvgHeartRate!.round()}',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.7),
+                                style: AppTypography.chartAxis(colors.textSecondary).copyWith(
                                   fontSize: 11,
                                 ),
                               ),
@@ -247,14 +246,15 @@ class IntervalBreakdownCard extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.blueGrey.withValues(alpha: 0.2),
+                              color: colors.trackBg,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              'Rest',
+                              'Istirahat',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: Colors.blueGrey.shade200,
+                                fontFamily: AppTypography.bodyFontFamily,
+                                color: colors.textSecondary,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 10,
                               ),
@@ -263,11 +263,11 @@ class IntervalBreakdownCard extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              _formatDist(
+                              UnitFormatter.formatShortDistance(
                                 rep.restDistanceMeters,
+                                unitSystem,
                               ),
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.5),
+                              style: AppTypography.splitTable(colors.textSecondary).copyWith(
                                 fontSize: 12,
                               ),
                             ),
@@ -279,16 +279,14 @@ class IntervalBreakdownCard extends StatelessWidget {
                                     unitSystem,
                                   )
                                 : '—',
-                            style: TextStyle(
-                              color: Colors.blueGrey.shade200,
+                            style: AppTypography.splitTable(colors.textSecondary).copyWith(
                               fontSize: 12,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Text(
                             _formatDur(rep.restDurationSec),
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.5),
+                            style: AppTypography.splitTable(colors.textSecondary).copyWith(
                               fontSize: 12,
                             ),
                           ),
@@ -296,16 +294,15 @@ class IntervalBreakdownCard extends StatelessWidget {
                             const SizedBox(width: 10),
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.favorite_border,
-                                  color: Colors.blueGrey,
+                                  color: colors.textSecondary,
                                   size: 12,
                                 ),
                                 const SizedBox(width: 2),
                                 Text(
                                   '${rep.restAvgHeartRate!.round()}',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.5),
+                                  style: AppTypography.chartAxis(colors.textSecondary).copyWith(
                                     fontSize: 11,
                                   ),
                                 ),
@@ -327,6 +324,7 @@ class IntervalBreakdownCard extends StatelessWidget {
   }
 
   Widget _buildSummaryMetric({
+    required FitTraceColors colors,
     required String label,
     required String value,
   }) {
@@ -335,30 +333,19 @@ class IntervalBreakdownCard extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF8E9BAE),
-            fontSize: 10,
+          style: AppTypography.chartAxis(colors.textSecondary).copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
+          style: AppTypography.splitTable(colors.textPrimary).copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
       ],
     );
-  }
-
-  static String _formatDist(double meters) {
-    if (meters >= 1000) {
-      return '${(meters / 1000.0).toStringAsFixed(2)} km';
-    }
-    return '${meters.round()} m';
   }
 
   static String _formatDur(int seconds) {

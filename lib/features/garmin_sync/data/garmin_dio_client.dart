@@ -40,20 +40,25 @@ class DioGarminConnectClient implements GarminConnectClient {
 
   /// Exchanges a Garmin Personal API Key (GCDC_...) for a temporary 24h OAuth access token.
   static Future<String> exchangePersonalApiKey(String apiKey, {Dio? dio}) async {
-    final client = dio ?? Dio();
+    final trimmedKey = apiKey.trim();
+    if (trimmedKey.isEmpty) {
+      throw const SyncAuthFailure('Garmin Personal API Key tidak boleh kosong.');
+    }
+    final client = dio ?? _createStrictDio(personalApiBaseUrl);
     try {
       final res = await client.post<dynamic>(
         '$personalApiBaseUrl/personalapitoken-service/personal-api/personal-api-key/token',
         options: Options(
+          extra: const <String, Object?>{'skipSessionAuth': true},
           headers: <String, String>{
-            'Authorization': 'ApiKey $apiKey',
+            'Authorization': 'ApiKey $trimmedKey',
           },
           validateStatus: (status) => status != null && status < 500,
         ),
       );
       if (res.statusCode == 200 && res.data != null) {
         final token = res.data.toString().trim();
-        if (token.isNotEmpty) return token;
+        if (_isValidBearerToken(token)) return token;
       }
       throw SyncAuthFailure(
         'Gagal menukarkan Garmin Personal API Key (HTTP ${res.statusCode ?? '-'}). Pastikan API Key benar.',
@@ -63,6 +68,18 @@ class DioGarminConnectClient implements GarminConnectClient {
         'Koneksi gagal saat menukarkan Personal API Key: ${e.message}',
       );
     }
+  }
+
+  static bool _isValidBearerToken(String token) {
+    if (token.isEmpty) return false;
+    if (token.startsWith('<') || token.startsWith('{')) return false;
+    if (token.contains(RegExp(r'\s'))) return false;
+    return token.length >= 16;
+  }
+
+  static bool _isGarminHost(Uri uri) {
+    final host = uri.host.toLowerCase();
+    return host == 'garmin.com' || host.endsWith('.garmin.com');
   }
 
   final SecureCookieStore cookieStore;
@@ -127,17 +144,20 @@ class DioGarminConnectClient implements GarminConnectClient {
             return;
           }
 
-          final session = await cookieStore.loadSession();
-          if (session != null) {
-            final cookieHeader = session.buildCookieHeader(options.uri);
-            if (cookieHeader.isNotEmpty) {
-              options.headers['Cookie'] = cookieHeader;
-            }
-            if (session.csrfToken != null && session.csrfToken!.isNotEmpty) {
-              options.headers['connect-csrf-token'] = session.csrfToken;
-            }
-            if (session.bearerToken != null && session.bearerToken!.isNotEmpty) {
-              options.headers['Authorization'] = 'Bearer ${session.bearerToken}';
+          final skipSessionAuth = options.extra['skipSessionAuth'] == true;
+          if (!skipSessionAuth && _isGarminHost(options.uri)) {
+            final session = await cookieStore.loadSession();
+            if (session != null) {
+              final cookieHeader = session.buildCookieHeader(options.uri);
+              if (cookieHeader.isNotEmpty) {
+                options.headers['Cookie'] = cookieHeader;
+              }
+              if (session.csrfToken != null && session.csrfToken!.isNotEmpty) {
+                options.headers['connect-csrf-token'] = session.csrfToken;
+              }
+              if (session.bearerToken != null && session.bearerToken!.isNotEmpty) {
+                options.headers['Authorization'] = 'Bearer ${session.bearerToken}';
+              }
             }
           }
           options.headers['NK'] = 'NT';
@@ -149,14 +169,14 @@ class DioGarminConnectClient implements GarminConnectClient {
           handler.next(options);
         },
         onResponse: (response, handler) async {
-          await _persistSetCookies(response.requestOptions.uri, response.headers);
+          await _persistSetCookies(response.realUri, response.headers);
           handler.next(response);
         },
         onError: (error, handler) async {
           final response = error.response;
           if (response != null) {
             await _persistSetCookies(
-              response.requestOptions.uri,
+              response.realUri,
               response.headers,
             );
           }

@@ -112,6 +112,13 @@ class MainActivity : FlutterActivity() {
                         CookieManager.getInstance().flush()
                         result.success(true)
                     }
+                    "clearDomStorage" -> {
+                        android.webkit.WebStorage.getInstance().deleteAllData()
+                        val cookieManager = CookieManager.getInstance()
+                        cookieManager.removeAllCookies(null)
+                        cookieManager.flush()
+                        result.success(true)
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -456,13 +463,25 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun copyUriToCache(uri: Uri, targetDir: File): String? {
+        val maxBytes = 50L * 1024L * 1024L // 50 MB safety cap for .FIT imports
         return try {
             val rawName = resolveDisplayName(uri) ?: "shared_${System.currentTimeMillis()}.fit"
             val safeName = rawName.replace(Regex("[^A-Za-z0-9._-]"), "_")
             val destFile = File(targetDir, "${System.currentTimeMillis()}_$safeName")
+            var totalBytes = 0L
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(destFile).use { output ->
-                    input.copyTo(output)
+                    val buffer = ByteArray(8192)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read <= 0) break
+                        totalBytes += read
+                        if (totalBytes > maxBytes) {
+                            destFile.delete()
+                            return null
+                        }
+                        output.write(buffer, 0, read)
+                    }
                 }
             } ?: return null
             destFile.absolutePath

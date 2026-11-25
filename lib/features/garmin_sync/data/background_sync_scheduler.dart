@@ -1,10 +1,13 @@
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/database/database_provider.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../import/data/fit_archive_storage.dart';
 import '../../import/data/fit_import_pipeline.dart';
 import '../application/garmin_sync_engine.dart';
+import '../application/garmin_sync_providers.dart';
 import 'garmin_dio_client.dart';
 import 'network_policy_checker.dart';
 import 'secure_cookie_store.dart';
@@ -112,6 +115,43 @@ Future<bool> executeHeadlessBackgroundSync({
   SecureKeyValueStore? secureStore,
   NetworkPolicyChecker? policyChecker,
 }) async {
+  // In production WorkManager/BGTask invocations, boot a full Riverpod
+  // ProviderContainer so background sync shares the DI graph and triggers
+  // post-persist hooks (such as route thumbnail generation).
+  if (database == null && secureStore == null && policyChecker == null) {
+    final container = ProviderContainer();
+    try {
+      final db = container.read(appDatabaseProvider);
+      final prefs = await db.getPreferences();
+      if (!prefs.garminLoggedIn || !prefs.backgroundSyncEnabled) {
+        return true;
+      }
+
+      final policy = await container
+          .read(networkPolicyCheckerProvider)
+          .evaluateForAutoSync(prefs);
+      if (!policy.allowed) {
+        AppLogger.info(
+          'BackgroundSyncWorker',
+          'Skipped background run: ${policy.skipReason}',
+        );
+        return true;
+      }
+
+      final result = await container.read(garminSyncEngineProvider).syncNow();
+      AppLogger.info(
+        'BackgroundSyncWorker',
+        'Headless sync complete: ${result.summaryBannerText}',
+      );
+      return true;
+    } on Object catch (error, stack) {
+      AppLogger.error('BackgroundSyncWorker', 'Headless sync failed', error, stack);
+      return false;
+    } finally {
+      container.dispose();
+    }
+  }
+
   final db = database ?? AppDatabase();
   final ownsDb = database == null;
   try {

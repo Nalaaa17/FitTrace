@@ -60,9 +60,9 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_initializedFromPrefs && widget.initialConfig == null) {
-      _initializedFromPrefs = true;
       final prefs = ref.read(userPreferencesProvider).value;
       if (prefs != null) {
+        _initializedFromPrefs = true;
         _config = _config.copyWith(
           templateId: StoryTemplateId.fromStorageKey(prefs.defaultTemplateId),
           showWatermark: prefs.watermarkEnabled,
@@ -375,10 +375,13 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
               child: FilledButton(
                 onPressed: _isExporting ? null : _shareToInstagram,
                 child: _isExporting
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
                       )
                     : const Text('Bagikan IG'),
               ),
@@ -491,34 +494,37 @@ class _EditorControlDeck extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              SegmentedButton<int>(
-                showSelectedIcon: false,
-                segments: const <ButtonSegment<int>>[
-                  ButtonSegment(value: 0, label: Text('Template')),
-                  ButtonSegment(value: 1, label: Text('Metrik')),
-                  ButtonSegment(value: 2, label: Text('Gaya')),
-                ],
-                selected: <int>{activeTab},
-                onSelectionChanged: (sel) => onTabSelected(sel.first),
-              ),
-              const SizedBox(height: 12),
-              if (activeTab == 0) _buildTemplatePanel(),
-              if (activeTab == 1) _buildMetricsPanel(),
-              if (activeTab == 2) _buildStylePanel(),
-            ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 280),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                SegmentedButton<int>(
+                  showSelectedIcon: false,
+                  segments: const <ButtonSegment<int>>[
+                    ButtonSegment(value: 0, label: Text('Template')),
+                    ButtonSegment(value: 1, label: Text('Metrik')),
+                    ButtonSegment(value: 2, label: Text('Gaya')),
+                  ],
+                  selected: <int>{activeTab},
+                  onSelectionChanged: (sel) => onTabSelected(sel.first),
+                ),
+                const SizedBox(height: 12),
+                if (activeTab == 0) _buildTemplatePanel(context),
+                if (activeTab == 1) _buildMetricsPanel(),
+                if (activeTab == 2) _buildStylePanel(),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildTemplatePanel() {
+  Widget _buildTemplatePanel(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -565,7 +571,7 @@ class _EditorControlDeck extends StatelessWidget {
         Row(
           children: <Widget>[
             Text(
-              'PRESET KUSTOM (M4-09)',
+              'PRESET KUSTOM',
               style: AppTypography.metricLabel(colors.textSecondary),
             ),
             const Spacer(),
@@ -586,7 +592,28 @@ class _EditorControlDeck extends StatelessWidget {
                   (preset) => InputChip(
                     label: Text(preset.name),
                     onPressed: () => onApplyPreset(preset),
-                    onDeleted: () => onDeletePreset(preset.id),
+                    onDeleted: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Hapus Preset?'),
+                          content: Text('Hapus preset "${preset.name}"?'),
+                          actions: <Widget>[
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              child: const Text('Batal'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              child: const Text('Hapus'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true) {
+                        onDeletePreset(preset.id);
+                      }
+                    },
                   ),
                 )
                 .toList(growable: false),

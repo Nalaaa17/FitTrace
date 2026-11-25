@@ -18,22 +18,26 @@ class TextInputDialog extends StatefulWidget {
     super.key,
     required this.title,
     this.initialValue = '',
+    this.promptText,
     this.labelText,
     this.hintText,
     this.confirmLabel = 'Simpan',
     this.secondaryActionLabel,
     this.secondaryActionKey,
     this.keyboardType = TextInputType.text,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   final String title;
   final String initialValue;
+  final String? promptText;
   final String? labelText;
   final String? hintText;
   final String confirmLabel;
   final String? secondaryActionLabel;
   final String? secondaryActionKey;
   final TextInputType keyboardType;
+  final TextCapitalization textCapitalization;
 
   @override
   State<TextInputDialog> createState() => _TextInputDialogState();
@@ -58,14 +62,25 @@ class _TextInputDialogState extends State<TextInputDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(widget.title),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        keyboardType: widget.keyboardType,
-        decoration: InputDecoration(
-          labelText: widget.labelText,
-          hintText: widget.hintText,
-        ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          if (widget.promptText != null) ...<Widget>[
+            Text(widget.promptText!),
+            const SizedBox(height: 10),
+          ],
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            keyboardType: widget.keyboardType,
+            textCapitalization: widget.textCapitalization,
+            decoration: InputDecoration(
+              labelText: widget.labelText,
+              hintText: widget.hintText,
+            ),
+          ),
+        ],
       ),
       actions: <Widget>[
         TextButton(

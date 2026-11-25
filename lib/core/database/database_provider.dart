@@ -16,6 +16,12 @@ final userPreferencesProvider = StreamProvider<UserPreference>((ref) {
   return db.watchPreferences();
 });
 
+/// Shared mutation tick stream emitted whenever activities are inserted, updated, or deleted.
+final activitiesMutationTickProvider = StreamProvider<int>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return db.watchActivitiesMutationTick();
+});
+
 /// Maps persisted `themeMode` string (`dark` | `light` | `system`) to [ThemeMode].
 ThemeMode parseThemeMode(String? rawMode) {
   switch (rawMode) {

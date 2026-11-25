@@ -5,6 +5,7 @@ import 'package:metrics_engine/metrics_engine.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/database_provider.dart';
+import '../../../core/utils/unit_formatter.dart';
 
 class FeedFilterNotifier extends Notifier<ActivityFeedFilter> {
   @override
@@ -153,15 +154,8 @@ final feedPagingProvider =
 );
 
 /// Formats a pace in seconds per kilometer as `MM'SS"` (PRD M2-07).
-String formatPace(double paceSecPerKm) {
-  if (paceSecPerKm <= 0 || paceSecPerKm.isNaN || paceSecPerKm.isInfinite) {
-    return '--\'--"';
-  }
-  final totalSec = paceSecPerKm.round();
-  final minutes = totalSec ~/ 60;
-  final seconds = totalSec % 60;
-  return "$minutes'${seconds.toString().padLeft(2, '0')}\"";
-}
+String formatPace(double paceSecPerKm) =>
+    UnitFormatter.formatPaceRaw(paceSecPerKm);
 
 /// Formats elapsed/moving seconds as `HH:MM:SS` or `MM:SS`.
 String formatDuration(int totalSeconds) {
